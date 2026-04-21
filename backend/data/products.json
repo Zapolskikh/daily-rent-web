@@ -1,0 +1,56 @@
+{
+  "products": [
+    {
+      "id": "grill-001",
+      "name": "Газовый гриль премиум",
+      "category": "party",
+      "description": "Мощный гриль для пикника и вечеринок.",
+      "price_per_day": 550,
+      "image_url": "",
+      "stock_quantity": 1,
+      "options": [],
+      "created_at": "2026-04-21T00:00:00+00:00",
+      "updated_at": "2026-04-21T00:00:00+00:00"
+    },
+    {
+      "id": "travel-box-001",
+      "name": "Бокс на крышу автомобиля",
+      "category": "travel",
+      "description": "Вместительный автобокс для поездок по Чехии и Европе.",
+      "price_per_day": 420,
+      "image_url": "",
+      "stock_quantity": 1,
+      "options": [],
+      "created_at": "2026-04-21T00:00:00+00:00",
+      "updated_at": "2026-04-21T00:00:00+00:00"
+    },
+    {
+      "id": "drill-001",
+      "name": "Ударная дрель",
+      "category": "repair",
+      "description": "Для домашних ремонтных работ и монтажа.",
+      "price_per_day": 280,
+      "image_url": "",
+      "stock_quantity": 1,
+      "options": [
+        {
+          "id": "d-wood",
+          "name": "Сверла по дереву",
+          "price": 40
+        },
+        {
+          "id": "d-metal",
+          "name": "Сверла по металлу",
+          "price": 40
+        },
+        {
+          "id": "d-concrete",
+          "name": "Сверла по бетону",
+          "price": 50
+        }
+      ],
+      "created_at": "2026-04-21T00:00:00+00:00",
+      "updated_at": "2026-04-21T00:00:00+00:00"
+    }
+  ]
+}
