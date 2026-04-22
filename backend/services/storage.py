@@ -76,32 +76,106 @@ def init_db() -> None:
     _migrate_reservations_from_orders()
 
 
-def _migrate_reservations_from_orders() -> None:
-    """One-time migration: populate reservations table from existing active orders."""
-    with _session() as session:
-        # Skip if reservations table already has data
-        existing = session.execute(select(ReservationRecord).limit(1)).first()
-        if existing:
-            return
-        rows = session.execute(select(OrderRecord)).scalars().all()
-    active = [Order.model_validate(r.data) for r in rows if r.status in ("pending", "confirmed")]
-    if not active:
-        return
+def _session() -> Session:
+    _get_engine()  # ensure engine initialized
+    return _SessionLocal()
+
+
+def _rebuild_reservations_from_orders(session: Session) -> None:
+    """Rebuild reservations table from active orders. Called inside an open session."""
+    active_orders = [
+        Order.model_validate(r.data)
+        for r in session.execute(select(OrderRecord)).scalars().all()
+        if r.status in ("pending", "confirmed")
+    ]
     counts: dict[tuple[str, str], int] = {}
-    for order in active:
+    for order in active_orders:
         for item in order.items:
             for date in order.dates:
                 key = (item.product_id, date)
                 counts[key] = counts.get(key, 0) + 1
+    session.query(ReservationRecord).delete()
+    for (pid, date), cnt in counts.items():
+        session.add(ReservationRecord(product_id=pid, date=date, count=cnt))
+
+
+def _migrate_reservations_from_orders() -> None:
+    """Always rebuild reservations from active orders on startup."""
     with _session() as session:
-        for (pid, date), cnt in counts.items():
-            session.add(ReservationRecord(product_id=pid, date=date, count=cnt))
+        _rebuild_reservations_from_orders(session)
         session.commit()
 
 
-def _session() -> Session:
-    _get_engine()  # ensure engine initialized
-    return _SessionLocal()
+def get_reserved_counts(product_ids: list[str], dates: list[str]) -> dict[tuple[str, str], int]:
+    """Returns {(product_id, date): count} for the given products and dates."""
+    if not product_ids or not dates:
+        return {}
+    with _session() as session:
+        rows = session.execute(
+            select(ReservationRecord).where(
+                ReservationRecord.product_id.in_(product_ids),
+                ReservationRecord.date.in_(dates),
+            )
+        ).scalars().all()
+    return {(r.product_id, r.date): r.count for r in rows}
+
+
+def reserve_if_available(
+    items: list[tuple[str, str, int]],  # [(product_id, product_name, stock), ...]
+    dates: list[str],
+) -> str | None:
+    """
+    Atomically check availability and reserve in ONE transaction.
+    Returns None on success, or an error message string if any item is unavailable.
+    """
+    if not items or not dates:
+        return None
+    product_ids = [pid for pid, _, _ in items]
+    with _session() as session:
+        # Lock rows for update (PostgreSQL) or just read (SQLite)
+        rows = {
+            (r.product_id, r.date): r
+            for r in session.execute(
+                select(ReservationRecord).where(
+                    ReservationRecord.product_id.in_(product_ids),
+                    ReservationRecord.date.in_(dates),
+                ).with_for_update()
+            ).scalars().all()
+        }
+        # Check each item
+        for product_id, product_name, stock in items:
+            for date in dates:
+                current = rows.get((product_id, date))
+                count = current.count if current else 0
+                if count >= stock:
+                    return f"Товар «{product_name}» недоступен на {date}"
+        # All OK — increment
+        for product_id, _, _ in items:
+            for date in dates:
+                row = rows.get((product_id, date))
+                if row:
+                    row.count += 1
+                else:
+                    new_row = ReservationRecord(product_id=product_id, date=date, count=1)
+                    session.add(new_row)
+        session.commit()
+    return None
+
+
+def increment_reservations(product_ids: list[str], dates: list[str], delta: int = 1) -> None:
+    """Atomically increment (or decrement if delta<0) reservation counts."""
+    if not product_ids or not dates:
+        return
+    with _session() as session:
+        for pid in product_ids:
+            for date in dates:
+                row = session.get(ReservationRecord, (pid, date))
+                if row:
+                    row.count = max(0, row.count + delta)
+                elif delta > 0:
+                    session.add(ReservationRecord(product_id=pid, date=date, count=delta))
+        session.commit()
+
 
 
 # ── Products ──────────────────────────────────────────────────────────────────

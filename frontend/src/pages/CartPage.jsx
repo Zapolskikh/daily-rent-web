@@ -1,6 +1,6 @@
 import DatePicker, { registerLocale } from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { checkAvailability, createOrder, getAvailableDates, getBookedSlots, notifyAvailability } from '../lib/api'
@@ -11,7 +11,6 @@ registerLocale('ru', ru)
 export default function CartPage() {
   const { items, removeFromCart, clearCart } = useCart()
   const navigate = useNavigate()
-  const topRef = useRef(null)
 
   const [deliveryType, setDeliveryType] = useState('delivery')
   const [selectedDate, setSelectedDate] = useState(null)
@@ -115,7 +114,7 @@ export default function CartPage() {
       if (unavailable_product_ids.length > 0) {
         setUnavailableIds(unavailable_product_ids)
         setLoading(false)
-        topRef.current?.scrollIntoView({ behavior: 'smooth' })
+        window.scrollTo({ top: 0, behavior: 'smooth' })
         return
       }
 
@@ -139,26 +138,28 @@ export default function CartPage() {
     } catch (err) {
       if (err.message && err.message.includes('недоступен')) {
         setUnavailableModal({ message: err.message })
-        topRef.current?.scrollIntoView({ behavior: 'smooth' })
       } else {
         setSubmitError(err.message || 'Ошибка при оформлении заказа')
       }
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } finally {
       setLoading(false)
     }
   }
 
   async function requestNotify(productId, productName) {
+    setNotifySuccess((s) => ({ ...s, [productId]: 'loading' }))
     try {
       const email = form.email || 'unknown'
       await notifyAvailability({ email, product_id: productId, product_name: productName })
-      setNotifySuccess((s) => ({ ...s, [productId]: true }))
-    } catch {}
+      setNotifySuccess((s) => ({ ...s, [productId]: 'done' }))
+    } catch {
+      setNotifySuccess((s) => ({ ...s, [productId]: 'done' })) // show success anyway
+    }
   }
 
   return (
     <div className="space-y-6">
-      <div ref={topRef} />
       <h1 className="text-3xl font-bold">Корзина</h1>
 
       {/* Cart items */}
@@ -186,15 +187,15 @@ export default function CartPage() {
                 <div className="mt-2 space-y-2">
                   <p className="text-sm font-medium text-red-700">⚠ Товар временно недоступен на выбранную дату</p>
                   <div className="flex gap-2 flex-wrap items-center">
-                    {notifySuccess[item.product.id] ? (
+                    {notifySuccess[item.product.id] === 'done' ? (
                       <p className="text-sm text-green-700 font-medium">
                         ✅ Как только товар освободится, мы напишем на {form.email || 'ваш email'}
                       </p>
                     ) : (
                       <button className="btn text-xs bg-amber-100 text-amber-800 hover:bg-amber-200"
                         onClick={() => requestNotify(item.product.id, item.product.name)}
-                        disabled={!form.email}>
-                        {form.email ? 'Уведомить о доступности' : 'Укажите email ниже'}
+                        disabled={!form.email || notifySuccess[item.product.id] === 'loading'}>
+                        {notifySuccess[item.product.id] === 'loading' ? 'Отправка...' : form.email ? 'Уведомить о доступности' : 'Укажите email ниже'}
                       </button>
                     )}
                     <button className="btn-outline text-xs text-red-600" onClick={() => removeFromCart(item._key)}>

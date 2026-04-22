@@ -45,6 +45,7 @@ from services.storage import (
     read_available_dates,
     read_orders,
     read_products,
+    reserve_if_available,
     seed_legacy_data_if_empty,
     upsert_product,
     write_available_dates,
@@ -236,22 +237,13 @@ def get_booked_slots() -> dict:
 def create_order(payload: OrderCreate) -> Order:
     if payload.dates:
         products_map = {p.id: p for p in read_products()}
-        product_ids = [item.product_id for item in payload.items]
-        reserved = get_reserved_counts(product_ids, payload.dates)
-
-        for item in payload.items:
-            product = products_map.get(item.product_id)
-            stock = product.stock_quantity if product else 0
-            for d in payload.dates:
-                if reserved.get((item.product_id, d), 0) >= stock:
-                    raise HTTPException(
-                        status_code=409,
-                        detail=f"Товар «{item.product_name}» недоступен на {d}"
-                    )
-
-        # Reserve the product for these dates
-        product_ids_list = [item.product_id for item in payload.items]
-        increment_reservations(product_ids_list, payload.dates, delta=1)
+        reserve_items = [
+            (item.product_id, item.product_name, (products_map[item.product_id].stock_quantity if item.product_id in products_map else 0))
+            for item in payload.items
+        ]
+        error = reserve_if_available(reserve_items, payload.dates)
+        if error:
+            raise HTTPException(status_code=409, detail=error)
     # Calculate total
     total = 0.0
     days = max(len(payload.dates), 1)
