@@ -95,7 +95,13 @@ async function request(path, options = {}) {
   })
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}))
-    throw new Error(payload.detail || 'Request failed')
+    let detail = payload.detail
+    if (Array.isArray(detail)) {
+      detail = detail.map((e) => e.msg || JSON.stringify(e)).join('; ')
+    } else if (detail && typeof detail === 'object') {
+      detail = JSON.stringify(detail)
+    }
+    throw new Error(detail || `Request failed (${response.status})`)
   }
   const contentType = response.headers.get('content-type') || ''
   if (!contentType.includes('application/json')) return null
