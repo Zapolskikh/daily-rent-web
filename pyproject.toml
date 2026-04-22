@@ -1,0 +1,15 @@
+[project]
+name = "daily-rent-web"
+version = "1.0.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi==0.115.12",
+    "uvicorn==0.34.2",
+    "python-multipart==0.0.9",
+    "pydantic[email]==2.11.4",
+    "itsdangerous==2.2.0",
+    "pyTelegramBotAPI==4.26.0",
+    "SQLAlchemy==2.0.41",
+    "cloudinary==1.44.1",
+    "psycopg2-binary==2.9.10",
+]
