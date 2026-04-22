@@ -253,22 +253,40 @@ export default function AdminPage() {
           <section className="card h-fit">
             <h2 className="mb-3 text-xl font-semibold">{editingId ? 'Редактировать' : 'Новый товар'}</h2>
             <form className="grid gap-3" onSubmit={onSave}>
-              <input className="input" placeholder="Название" value={form.name}
-                onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} required />
-              <select className="input" value={form.category}
-                onChange={(e) => setForm((s) => ({ ...s, category: e.target.value }))} required>
-                {categories.map((item) => (
-                  <option key={item.slug} value={item.slug}>{item.name}</option>
-                ))}
-              </select>
-              <input className="input" type="number" min="1" step="1" placeholder="Цена в день (Kč)"
-                value={form.price_per_day} onChange={(e) => setForm((s) => ({ ...s, price_per_day: e.target.value }))} required />
-              <input className="input" type="number" min="0" step="1" placeholder="Количество (шт.)"
-                value={form.stock_quantity} onChange={(e) => setForm((s) => ({ ...s, stock_quantity: e.target.value }))} required />
-              <textarea className="input min-h-20" placeholder="Описание" value={form.description}
-                onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} required />
-              <input className="input" type="file" accept="image/png,image/jpeg,image/webp"
-                onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
+              <div className="grid gap-1">
+                <label className="text-xs font-medium text-slate-500">Название товара</label>
+                <input className="input" placeholder="Напр.: Газовый гриль премиум" value={form.name}
+                  onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} required />
+              </div>
+              <div className="grid gap-1">
+                <label className="text-xs font-medium text-slate-500">Категория</label>
+                <select className="input" value={form.category}
+                  onChange={(e) => setForm((s) => ({ ...s, category: e.target.value }))} required>
+                  {categories.map((item) => (
+                    <option key={item.slug} value={item.slug}>{item.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid gap-1">
+                <label className="text-xs font-medium text-slate-500">Цена за день (Kč)</label>
+                <input className="input" type="number" min="1" step="1" placeholder="Напр.: 550"
+                  value={form.price_per_day} onChange={(e) => setForm((s) => ({ ...s, price_per_day: e.target.value }))} required />
+              </div>
+              <div className="grid gap-1">
+                <label className="text-xs font-medium text-slate-500">Количество в наличии (шт.)</label>
+                <input className="input" type="number" min="0" step="1" placeholder="Напр.: 1"
+                  value={form.stock_quantity} onChange={(e) => setForm((s) => ({ ...s, stock_quantity: e.target.value }))} required />
+              </div>
+              <div className="grid gap-1">
+                <label className="text-xs font-medium text-slate-500">Описание</label>
+                <textarea className="input min-h-20" placeholder="Краткое описание товара, особенности, что входит в комплект…" value={form.description}
+                  onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} required />
+              </div>
+              <div className="grid gap-1">
+                <label className="text-xs font-medium text-slate-500">Фото товара (JPG, PNG, WebP)</label>
+                <input className="input" type="file" accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
+              </div>
 
               {/* Options */}
               <div className="rounded-xl border border-slate-200 p-3 space-y-2">
@@ -280,9 +298,9 @@ export default function AdminPage() {
                   </div>
                 ))}
                 <div className="grid grid-cols-[1fr,80px,auto] gap-2 mt-1">
-                  <input className="input text-sm" placeholder="Название опции" value={newOption.name}
+                  <input className="input text-sm" placeholder="Напр.: Биты (набор)" value={newOption.name}
                     onChange={(e) => setNewOption((s) => ({ ...s, name: e.target.value }))} />
-                  <input className="input text-sm" type="number" min="0" placeholder="Kč" value={newOption.price}
+                  <input className="input text-sm" type="number" min="0" placeholder="Цена" value={newOption.price}
                     onChange={(e) => setNewOption((s) => ({ ...s, price: e.target.value }))} />
                   <button type="button" className="btn-outline text-sm" onClick={addOption}>+ Добавить</button>
                 </div>

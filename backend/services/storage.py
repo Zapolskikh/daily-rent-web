@@ -83,11 +83,7 @@ def write_products(products: list[Product]) -> None:
     with _session() as session:
         session.query(ProductRecord).delete()
         for item in products:
-            payload = {
-                **item.model_dump(),
-                "created_at": item.created_at.isoformat(),
-                "updated_at": item.updated_at.isoformat(),
-            }
+            payload = json.loads(item.model_dump_json())
             session.add(ProductRecord(id=item.id, data=payload))
         session.commit()
 
