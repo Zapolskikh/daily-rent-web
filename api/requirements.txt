@@ -1,9 +1,0 @@
-fastapi
-uvicorn
-python-multipart
-pydantic[email]
-itsdangerous
-pyTelegramBotAPI
-SQLAlchemy
-cloudinary
-asyncpg

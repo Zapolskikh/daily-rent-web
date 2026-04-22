@@ -6,4 +6,4 @@ itsdangerous==2.2.0
 pyTelegramBotAPI==4.26.0
 SQLAlchemy==2.0.41
 cloudinary==1.44.1
-psycopg[binary]==3.2.6
+asyncpg
