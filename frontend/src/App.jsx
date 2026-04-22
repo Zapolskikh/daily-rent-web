@@ -9,7 +9,7 @@ import CartPage from './pages/CartPage'
 function CartIcon() {
   const { totalCount } = useCart()
   return (
-    <Link to="/cart" className="rounded-xl bg-white/20 px-5 py-2.5 text-base font-semibold text-white hover:bg-white/30 transition relative">
+    <Link to="/cart" className="rounded-xl bg-white/20 px-5 py-2.5 text-lg font-semibold text-white hover:bg-white/30 transition relative">
       🛒 Корзина
       {totalCount > 0 && (
         <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-teal-900">
@@ -54,9 +54,9 @@ function Layout() {
           >
             Daily Rent Prague
           </Link>
-          <nav className="flex gap-1">
-            <Link to="/" className="rounded-xl px-5 py-2.5 text-base font-semibold text-white hover:bg-white/20 transition">🛍 Каталог</Link>
-            <Link to="/delivery-terms" className="rounded-xl px-5 py-2.5 text-base font-semibold text-white hover:bg-white/20 transition">📋 Условия</Link>
+          <nav className="flex gap-3">
+            <Link to="/" className="rounded-xl px-5 py-2.5 text-lg font-semibold text-white hover:bg-white/20 transition">🏷️ Каталог</Link>
+            <Link to="/delivery-terms" className="rounded-xl px-5 py-2.5 text-lg font-semibold text-white hover:bg-white/20 transition">📋 Условия</Link>
             <CartIcon />
             {import.meta.env.DEV && (
               <Link to="/admin" className="rounded-xl bg-white/20 px-5 py-2.5 text-base font-semibold text-white hover:bg-white/30 transition">Админ</Link>
