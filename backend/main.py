@@ -381,3 +381,25 @@ def debug_reset_products(_: str = Depends(verify_admin)) -> MessageResponse:
         session.commit()
     seed_products_from_file_if_empty()
     return MessageResponse(message="Products reset from seed file")
+
+@app.post("/api/admin/debug/sql")
+def debug_sql(payload: dict, _: str = Depends(verify_admin)) -> dict:
+    """Execute a raw SQL query and return results."""
+    from services.storage import _get_engine
+    from sqlalchemy import text
+    sql = (payload.get("sql") or "").strip()
+    if not sql:
+        raise HTTPException(status_code=400, detail="sql field is required")
+    engine = _get_engine()
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(sql))
+            conn.commit()
+            try:
+                keys = list(result.keys())
+                rows = [dict(zip(keys, row)) for row in result.fetchall()]
+                return {"columns": keys, "rows": rows, "rowcount": len(rows)}
+            except Exception:
+                return {"columns": [], "rows": [], "rowcount": result.rowcount}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

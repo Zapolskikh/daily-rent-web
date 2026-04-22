@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   adminLogin,
   createProduct,
@@ -14,6 +14,7 @@ import {
   updateProduct,
   uploadImage,
 } from '../lib/api'
+import SqlTerminal from '../components/SqlTerminal'
 
 const emptyForm = {
   name: '',
@@ -58,6 +59,18 @@ export default function AdminPage() {
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [debugRaw, setDebugRaw] = useState(null)
+  const [apiLog, setApiLog] = useState(null)
+
+  function logApi(method, path, body, responseFn) {
+    const ts = new Date().toLocaleTimeString()
+    return responseFn().then((res) => {
+      setApiLog({ type: 'api', method, path, body, response: res, ts })
+      return res
+    }).catch((err) => {
+      setApiLog({ type: 'api', method, path, body, error: err.message, ts })
+      throw err
+    })
+  }
 
   // Orders tab
   const [orders, setOrders] = useState([])
@@ -152,9 +165,9 @@ export default function AdminPage() {
         options: form.options,
       }
       if (editingId) {
-        await updateProduct(editingId, payload, token)
+        await logApi('PUT', `/api/admin/products/${editingId}`, payload, () => updateProduct(editingId, payload, token))
       } else {
-        await createProduct(payload, token)
+        await logApi('POST', '/api/admin/products', payload, () => createProduct(payload, token))
       }
       await refreshProducts()
       setForm(emptyForm)
@@ -168,7 +181,7 @@ export default function AdminPage() {
 
   async function onDelete(id) {
     try {
-      await deleteProduct(id, token)
+      await logApi('DELETE', `/api/admin/products/${id}`, null, () => deleteProduct(id, token))
       await refreshProducts()
       setMessage('Товар удален')
     } catch (err) {
@@ -462,6 +475,9 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* ── SQL Terminal ── */}
+      <SqlTerminal token={token} externalLog={apiLog} />
     </div>
   )
 }

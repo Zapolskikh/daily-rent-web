@@ -97,7 +97,10 @@ async function request(path, options = {}) {
     const payload = await response.json().catch(() => ({}))
     let detail = payload.detail
     if (Array.isArray(detail)) {
-      detail = detail.map((e) => e.msg || JSON.stringify(e)).join('; ')
+      detail = detail.map((e) => {
+        const loc = Array.isArray(e.loc) ? e.loc.join('.') : ''
+        return `[${loc}] ${e.msg} (input: ${JSON.stringify(e.input)})`
+      }).join(' | ')
     } else if (detail && typeof detail === 'object') {
       detail = JSON.stringify(detail)
     }
@@ -338,6 +341,14 @@ export async function debugResetProducts(token) {
   return request('/api/admin/debug/reset-products', {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
+export async function debugRunSql(sql, token) {
+  return request('/api/admin/debug/sql', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ sql }),
   })
 }
 
