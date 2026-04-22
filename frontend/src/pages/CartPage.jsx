@@ -21,7 +21,8 @@ export default function CartPage() {
   const navigate = useNavigate()
 
   const [deliveryType, setDeliveryType] = useState('delivery')
-  const [selectedDates, setSelectedDates] = useState([])
+  const [startDate, setStartDate] = useState(null)
+  const [endDate, setEndDate] = useState(null)
   const [availableDates, setAvailableDates] = useState([])
   const [availableSlots, setAvailableSlots] = useState([])
   const [selectedSlot, setSelectedSlot] = useState('')
@@ -63,6 +64,19 @@ export default function CartPage() {
     )
   }
 
+  // compute all dates in the selected range
+  function dateRange(start, end) {
+    if (!start) return []
+    const dates = []
+    const d = new Date(start)
+    const last = end || start
+    while (d <= last) {
+      dates.push(d.toISOString().slice(0, 10))
+      d.setDate(d.getDate() + 1)
+    }
+    return dates
+  }
+  const selectedDates = dateRange(startDate, endDate)
   const days = Math.max(selectedDates.length, 1)
   const itemTotals = items.map((item) => {
     const optTotal = item.selectedOptions.reduce((s, o) => s + o.price, 0)
@@ -70,13 +84,14 @@ export default function CartPage() {
   })
   const grandTotal = itemTotals.reduce((s, v) => s + v, 0)
 
-  function isDateAvailable(date) {
+  function isDeliveryDate(date) {
     const iso = date.toISOString().slice(0, 10)
     return availableDates.includes(iso)
   }
 
-  function handleDateChange(dates) {
-    setSelectedDates((dates || []).map((d) => d.toISOString().slice(0, 10)))
+  function handleDateChange([start, end]) {
+    setStartDate(start || null)
+    setEndDate(end || null)
   }
 
   async function handleCheckAndSubmit(e) {
@@ -84,8 +99,8 @@ export default function CartPage() {
     setSubmitError('')
     setUnavailableIds([])
 
-    if (deliveryType === 'delivery' && selectedDates.length === 0) {
-      setSubmitError('Выберите хотя бы одну дату доставки')
+    if (deliveryType === 'delivery' && !startDate) {
+      setSubmitError('Выберите дату начала аренды')
       return
     }
 
@@ -136,7 +151,7 @@ export default function CartPage() {
     } catch {}
   }
 
-  const selectedDateObjs = selectedDates.map((d) => new Date(d + 'T00:00:00'))
+  const availableDateObjs = availableDates.map((d) => new Date(d + 'T00:00:00'))
 
   return (
     <div className="space-y-6">
@@ -201,27 +216,38 @@ export default function CartPage() {
 
         {/* Date picker */}
         <div>
-          <h3 className="mb-3 font-medium text-slate-700">
-            Выберите даты аренды
-            <span className="ml-2 text-sm font-normal text-slate-500">
-              {availableDates.length > 0 ? '(доступные даты подсвечены)' : '(загрузка...)'}
-            </span>
-          </h3>
+          <h3 className="mb-1 font-medium text-slate-700">Выберите период аренды</h3>
+          <p className="mb-3 text-sm text-slate-500">
+            Нажмите на дату начала, затем на дату окончания аренды.
+            {availableDates.length > 0 && ' Даты доставки подсвечены зелёным.'}
+          </p>
           <div className="datepicker-wrapper">
             <DatePicker
               locale="ru"
               inline
-              selectsMultiple
-              selectedDates={selectedDateObjs}
+              selectsRange
+              startDate={startDate}
+              endDate={endDate}
               onChange={handleDateChange}
-              filterDate={isDateAvailable}
+              highlightDates={availableDateObjs}
               minDate={new Date()}
             />
           </div>
-          {selectedDates.length > 0 && (
-            <p className="mt-2 text-sm text-teal-700">
-              Выбрано {selectedDates.length} дн.: {selectedDates.sort().join(', ')}
-            </p>
+          {startDate && (
+            <div className="mt-3 rounded-xl bg-teal-50 border border-teal-200 px-4 py-3 text-sm space-y-0.5">
+              <p className="font-semibold text-teal-800">
+                {days} {days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'}
+              </p>
+              <p className="text-teal-700">
+                Начало: <strong>{startDate.toLocaleDateString('ru-RU')}</strong>
+                {endDate && endDate.getTime() !== startDate.getTime() && (
+                  <> &rarr; Конец: <strong>{endDate.toLocaleDateString('ru-RU')}</strong></>
+                )}
+              </p>
+              {!isDeliveryDate(startDate) && availableDates.length > 0 && (
+                <p className="text-amber-700">⚠ Выбранная дата начала не является датой доставки. Уточните у менеджера.</p>
+              )}
+            </div>
           )}
         </div>
 

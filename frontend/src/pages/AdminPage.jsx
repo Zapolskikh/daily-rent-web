@@ -77,8 +77,10 @@ export default function AdminPage() {
 
   // Dates tab
   const [calendarDays] = useState(buildCalendarDays)
-  const [selectedDates, setSelectedDates] = useState([])
+  const [savedDates, setSavedDates] = useState([])   // what's actually in the DB
+  const [selectedDates, setSelectedDates] = useState([])  // local editing state
   const [datesMessage, setDatesMessage] = useState('')
+  const [datesSaving, setDatesSaving] = useState(false)
 
   async function refreshProducts() {
     const payload = await getProducts('')
@@ -115,7 +117,10 @@ export default function AdminPage() {
   async function refreshDates() {
     try {
       const payload = await getAvailableDates()
-      setSelectedDates(payload.dates || [])
+      const dates = payload.dates || []
+      setSavedDates(dates)
+      setSelectedDates(dates)
+      setDatesMessage('')
     } catch { }
   }
 
@@ -231,11 +236,16 @@ export default function AdminPage() {
   }
 
   async function saveDates() {
+    setDatesSaving(true)
+    setDatesMessage('')
     try {
       await setAvailableDates(selectedDates, token)
-      setDatesMessage('Даты сохранены')
+      setSavedDates([...selectedDates])
+      setDatesMessage('✅ Сохранено в БД')
     } catch (err) {
       setDatesMessage('Ошибка: ' + err.message)
+    } finally {
+      setDatesSaving(false)
     }
   }
 
@@ -435,59 +445,137 @@ export default function AdminPage() {
       )}
 
       {/* ── Dates tab ── */}
-      {activeTab === 'dates' && (
-        <section className="card space-y-6">
-          <div>
-            <h2 className="text-xl font-semibold">Доступные даты доставки</h2>
-            <p className="text-sm text-slate-500 mt-1">Отметьте даты, когда вы можете осуществить доставку.</p>
-          </div>
-          {grouped.map((month) => (
-            <div key={month.key}>
-              <p className="mb-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">{month.label}</p>
+      {activeTab === 'dates' && (() => {
+        const hasChanges = JSON.stringify([...selectedDates].sort()) !== JSON.stringify([...savedDates].sort())
+        const savedDateSet = new Set(savedDates)
+        const selectedDateSet = new Set(selectedDates)
+        return (
+          <section className="card space-y-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">Доступные даты доставки</h2>
+                <p className="text-sm text-slate-500 mt-0.5">Нажмите на дату — добавить/убрать. Изменения вступят в силу после нажатия «Сохранить».</p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {hasChanges && (
+                  <span className="rounded-lg bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-1">
+                    ● Есть несохранённые изменения
+                  </span>
+                )}
+                <button className="btn-outline text-sm" onClick={() => { setSelectedDates([...savedDates]); setDatesMessage('') }}>
+                  Сбросить изменения
+                </button>
+                <button className="btn-outline text-sm" onClick={refreshDates}>
+                  ↻ Обновить из БД
+                </button>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="flex flex-wrap gap-3 text-xs text-slate-600">
+              <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded bg-teal-600 inline-block"/><b>Сохранено в БД</b></span>
+              <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded bg-green-200 border border-green-500 inline-block"/>Будет добавлено</span>
+              <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded bg-red-100 border border-red-400 inline-block"/>Будет удалено</span>
+              <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded bg-slate-100 inline-block"/>Не выбрано</span>
+            </div>
+
+            {/* Date grid */}
+            {grouped.map((month) => (
+              <div key={month.key}>
+                <p className="mb-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">{month.label}</p>
+                <div className="flex flex-wrap gap-2">
+                  {month.days.map((iso) => {
+                    const inDb = savedDateSet.has(iso)
+                    const selected = selectedDateSet.has(iso)
+                    const day = new Date(iso).getDate()
+                    // States: saved+selected=teal, saved+unselected=red(will remove), new+selected=green, none=slate
+                    let cls = 'bg-slate-100 text-slate-600 hover:bg-teal-50'
+                    let title = 'Нажмите, чтобы добавить'
+                    if (inDb && selected) {
+                      cls = 'bg-teal-600 text-white hover:bg-teal-500'
+                      title = 'В БД · нажмите, чтобы убрать'
+                    } else if (inDb && !selected) {
+                      cls = 'bg-red-100 text-red-700 border border-red-400 hover:bg-red-200'
+                      title = 'Будет удалено из БД'
+                    } else if (!inDb && selected) {
+                      cls = 'bg-green-200 text-green-800 border border-green-500 hover:bg-green-300'
+                      title = 'Будет добавлено в БД'
+                    }
+                    return (
+                      <button key={iso} onClick={() => toggleDate(iso)} title={title}
+                        className={`h-9 w-9 rounded-lg text-sm font-medium transition ${cls}`}>
+                        {day}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {/* Stats */}
+            <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm grid gap-1">
+              <p><span className="font-medium">В БД сейчас:</span> {savedDates.filter(d => !d.includes(':')).length} дат доставки</p>
+              {hasChanges && (
+                <>
+                  <p className="text-green-700">+ Будет добавлено: {selectedDates.filter(d => !d.includes(':') && !savedDateSet.has(d)).length} дат</p>
+                  <p className="text-red-700">− Будет удалено: {savedDates.filter(d => !d.includes(':') && !selectedDateSet.has(d)).length} дат</p>
+                </>
+              )}
+            </div>
+
+            {/* Time slots */}
+            <div className="border-t pt-5 space-y-3">
+              <h3 className="font-semibold">Временные слоты доставки</h3>
+              <p className="text-sm text-slate-500">Отметьте часовые промежутки, когда вы можете доставить товар. Клиент выберет один из них при оформлении заказа.</p>
               <div className="flex flex-wrap gap-2">
-                {month.days.map((iso) => {
-                  const selected = selectedDates.includes(iso)
-                  const day = new Date(iso).getDate()
+                {Array.from({ length: 14 }, (_, i) => {
+                  const h = i + 8
+                  const slot = `${String(h).padStart(2, '0')}:00-${String(h + 1).padStart(2, '0')}:00`
+                  const inDb = savedDateSet.has(slot)
+                  const selected = selectedDateSet.has(slot)
+                  let cls = 'border-slate-200 text-slate-700 hover:border-teal-400'
+                  if (inDb && selected) cls = 'bg-teal-600 text-white border-teal-600'
+                  else if (inDb && !selected) cls = 'bg-red-50 text-red-700 border-red-400'
+                  else if (!inDb && selected) cls = 'bg-green-100 text-green-800 border-green-500'
                   return (
-                    <button key={iso} onClick={() => toggleDate(iso)}
-                      className={'h-9 w-9 rounded-lg text-sm font-medium transition ' + (selected ? 'bg-brand text-white' : 'bg-slate-100 text-slate-700 hover:bg-teal-100')}>
-                      {day}
+                    <button key={slot} onClick={() => toggleDate(slot)}
+                      title={inDb && selected ? 'В БД · нажмите, чтобы убрать' : inDb ? 'Будет удалено' : selected ? 'Будет добавлено' : 'Нажмите, чтобы добавить'}
+                      className={`px-3 py-2 rounded-xl border text-sm font-medium transition ${cls}`}>
+                      {h}:00 – {h + 1}:00
                     </button>
                   )
                 })}
               </div>
+              <div className="text-xs text-slate-500 space-y-0.5">
+                <p>В БД: {savedDates.filter(d => d.includes(':')).join(', ') || 'слоты не заданы'}</p>
+                {hasChanges && <p className="text-amber-700">После сохранения: {selectedDates.filter(d => d.includes(':')).join(', ') || 'без слотов'}</p>}
+              </div>
             </div>
-          ))}
 
-          {/* Time slots */}
-          <div className="border-t pt-4 space-y-3">
-            <h3 className="font-semibold">Временные слоты доставки</h3>
-            <p className="text-sm text-slate-500">Выберите часовые промежутки, в которые вы доступны для доставки.</p>
-            <div className="flex flex-wrap gap-2">
-              {Array.from({ length: 14 }, (_, i) => {
-                const h = i + 8
-                const slot = `${String(h).padStart(2, '0')}:00-${String(h + 1).padStart(2, '0')}:00`
-                const selected = selectedDates.includes(slot)
-                return (
-                  <button key={slot} onClick={() => toggleDate(slot)}
-                    className={`px-3 py-2 rounded-xl border text-sm font-medium transition
-                      ${selected ? 'bg-brand text-white border-brand' : 'border-slate-200 text-slate-700 hover:border-teal-400 hover:text-teal-700'}`}>
-                    {h}:00 – {h + 1}:00
-                  </button>
-                )
-              })}
+            {/* Save */}
+            <div className="flex items-center gap-4 pt-2 border-t">
+              <button
+                className={`btn-primary ${!hasChanges ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={saveDates}
+                disabled={!hasChanges || datesSaving}>
+                {datesSaving ? 'Сохранение...' : '💾 Сохранить в БД'}
+              </button>
+              {datesMessage && (
+                <p className={`text-sm font-medium ${datesMessage.startsWith('✅') ? 'text-green-700' : 'text-red-600'}`}>
+                  {datesMessage}
+                </p>
+              )}
             </div>
-            <p className="text-xs text-slate-400">
-              Выбранные слоты: {selectedDates.filter(d => d.includes(':')).join(', ') || 'не выбраны'}
+
+            {/* Hint about persistence */}
+            <p className="text-xs text-slate-400 bg-slate-50 rounded-lg px-3 py-2">
+              💡 Данные хранятся в PostgreSQL (Neon) — они <strong>не потеряются</strong> при редеплое или перезапуске сервера.
+              Для проверки в SQL терминале выполните: <code className="bg-slate-200 px-1 rounded">SELECT * FROM meta WHERE key = 'available_dates';</code>
             </p>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <button className="btn-primary" onClick={saveDates}>Сохранить даты и слоты</button>
-            {datesMessage && <p className="text-sm text-green-700">{datesMessage}</p>}
-          </div>
-        </section>
-      )}
+          </section>
+        )
+      })()}
 
       {/* ── Debug modal ── */}
       {debugRaw && (

@@ -6,6 +6,7 @@ const PRESETS = [
   { label: 'Структура products', sql: 'SELECT column_name, data_type FROM information_schema.columns WHERE table_name = \'products\';' },
   { label: 'Все заказы', sql: 'SELECT id, status, created_at FROM orders ORDER BY created_at DESC LIMIT 20;' },
   { label: 'Все таблицы', sql: 'SELECT tablename FROM pg_tables WHERE schemaname = \'public\';' },
+  { label: '📅 Даты доставки (meta)', sql: 'SELECT key, value FROM meta WHERE key = \'available_dates\';' },
 ]
 
 export default function SqlTerminal({ token, externalLog }) {
