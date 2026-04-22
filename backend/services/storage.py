@@ -9,16 +9,31 @@ from sqlalchemy.orm import Mapped, Session, declarative_base, mapped_column, ses
 
 from models import Order, Product
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////tmp/app.db")
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
-elif DATABASE_URL.startswith("postgresql://") and "+" not in DATABASE_URL.split("://", 1)[0]:
-    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
 
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args=connect_args)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
+def _build_database_url() -> str:
+    url = os.getenv("DATABASE_URL", "sqlite:////tmp/app.db")
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif url.startswith("postgresql://") and "+" not in url.split("://", 1)[0]:
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    elif url.startswith("postgresql+psycopg://"):
+        url = url.replace("postgresql+psycopg://", "postgresql+psycopg2://", 1)
+    return url
+
+
 Base = declarative_base()
+_engine = None
+_SessionLocal = None
+
+
+def _get_engine():
+    global _engine, _SessionLocal
+    if _engine is None:
+        url = _build_database_url()
+        connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
+        _engine = create_engine(url, pool_pre_ping=True, connect_args=connect_args)
+        _SessionLocal = sessionmaker(bind=_engine, autoflush=False, autocommit=False, expire_on_commit=False)
+    return _engine
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 PRODUCTS_FILE = DATA_DIR / "products.json"
@@ -50,11 +65,12 @@ class MetaRecord(Base):
 
 
 def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=_get_engine())
 
 
 def _session() -> Session:
-    return SessionLocal()
+    _get_engine()  # ensure engine initialized
+    return _SessionLocal()
 
 
 # ── Products ──────────────────────────────────────────────────────────────────
