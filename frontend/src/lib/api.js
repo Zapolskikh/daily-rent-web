@@ -326,4 +326,19 @@ export async function setAvailableDates(dates, token) {
   })
 }
 
+// ── Admin: debug ──────────────────────────────────────────────────────────────
+
+export async function debugGetProductsRaw(token) {
+  return request('/api/admin/debug/products-raw', {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
+export async function debugResetProducts(token) {
+  return request('/api/admin/debug/reset-products', {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
 export { API_BASE_URL }

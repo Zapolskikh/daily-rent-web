@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import {
   adminLogin,
   createProduct,
+  debugGetProductsRaw,
+  debugResetProducts,
   deleteProduct,
   getAvailableDates,
   getCategories,
@@ -55,6 +57,7 @@ export default function AdminPage() {
   const [newOption, setNewOption] = useState(emptyOption)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [debugRaw, setDebugRaw] = useState(null)
 
   // Orders tab
   const [orders, setOrders] = useState([])
@@ -67,6 +70,26 @@ export default function AdminPage() {
   async function refreshProducts() {
     const payload = await getProducts('')
     setProducts(payload.products || [])
+  }
+
+  async function handleDebugView() {
+    try {
+      const data = await debugGetProductsRaw(token)
+      setDebugRaw(data)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function handleDebugReset() {
+    if (!confirm('Удалить все товары из БД и пересеять из products.json?')) return
+    try {
+      const result = await debugResetProducts(token)
+      setMessage(result.message)
+      await refreshProducts()
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   async function refreshOrders() {
@@ -244,7 +267,11 @@ export default function AdminPage() {
             </button>
           ))}
         </div>
-        <button className="btn-outline" onClick={logout}>Выйти</button>
+        <div className="flex gap-2">
+          <button className="btn-outline text-xs" onClick={handleDebugView}>🔍 БД: сырые данные</button>
+          <button className="btn-outline text-xs text-red-600" onClick={handleDebugReset}>🔄 Сброс БД</button>
+          <button className="btn-outline" onClick={logout}>Выйти</button>
+        </div>
       </div>
 
       {/* ── Products tab ── */}
@@ -421,6 +448,19 @@ export default function AdminPage() {
             {datesMessage && <p className="text-sm text-green-700">{datesMessage}</p>}
           </div>
         </section>
+      )}
+
+      {/* ── Debug modal ── */}
+      {debugRaw && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setDebugRaw(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="font-semibold">Сырые данные из БД ({debugRaw.length} записей)</h2>
+              <button className="btn-outline" onClick={() => setDebugRaw(null)}>✕ Закрыть</button>
+            </div>
+            <pre className="overflow-auto p-4 text-xs text-slate-700 whitespace-pre-wrap">{JSON.stringify(debugRaw, null, 2)}</pre>
+          </div>
+        </div>
       )}
     </div>
   )
