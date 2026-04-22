@@ -317,8 +317,8 @@ export default function AdminPage() {
     }
   })
 
-  const STATUS_LABELS = { pending: 'В ожидании', confirmed: 'Подтверждён', cancelled: 'Отменён' }
-  const STATUS_COLORS = { pending: 'text-amber-700 bg-amber-50', confirmed: 'text-green-700 bg-green-50', cancelled: 'text-red-700 bg-red-50' }
+  const STATUS_LABELS = { pending: 'В ожидании', confirmed: 'Подтверждён', cancelled: 'Отменён', returned: 'Возвращён на склад' }
+  const STATUS_COLORS = { pending: 'text-amber-700 bg-amber-50', confirmed: 'text-green-700 bg-green-50', cancelled: 'text-red-700 bg-red-50', returned: 'text-slate-700 bg-slate-100' }
 
   if (!token) {
     return (
@@ -489,6 +489,18 @@ export default function AdminPage() {
                           </button>
                         </div>
                       )}
+                      {order.status === 'confirmed' && (
+                        <div className="flex gap-1">
+                          <button className="btn text-xs bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            onClick={async () => { await updateOrderStatus(order.id, 'returned', token); refreshOrders() }}>
+                            📦 Вернули на склад
+                          </button>
+                          <button className="btn text-xs bg-red-50 text-red-700 hover:bg-red-100"
+                            onClick={async () => { await updateOrderStatus(order.id, 'cancelled', token); refreshOrders() }}>
+                            Отменить
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                   {order.comment && <p className="text-sm text-slate-500">Комментарий: {order.comment}</p>}
@@ -559,7 +571,7 @@ export default function AdminPage() {
 
             {/* Date grid */}
             <p className="text-xs text-slate-500">
-              💡 <strong>Левый клик</strong> — включить/выключить дату. <strong>Клик по уже включённой дате</strong> — выбрать её для редактирования слотов (подсветится рамкой).
+              💡 <strong>Левый клик</strong> — включить/выключить дату. <strong>Клик по уже включённой дате</strong> — выбрать её для редактирования слотов (подсветится рамкой). <strong>Правый клик</strong> — отменить выбор даты.
             </p>
             {grouped.map((month) => (
               <div key={month.key}>

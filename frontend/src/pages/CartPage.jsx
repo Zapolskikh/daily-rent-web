@@ -1,6 +1,6 @@
 import DatePicker, { registerLocale } from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { checkAvailability, createOrder, getAvailableDates, getBookedSlots, notifyAvailability } from '../lib/api'
@@ -26,6 +26,8 @@ export default function CartPage() {
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [paymentStub, setPaymentStub] = useState(false)
+  const formRef = useRef(null)
 
   useEffect(() => {
     getAvailableDates()
@@ -288,7 +290,7 @@ export default function CartPage() {
       {/* Contact form */}
       <section className="card space-y-3">
         <h2 className="text-xl font-semibold">Контактные данные</h2>
-        <form onSubmit={handleCheckAndSubmit} className="grid gap-3">
+        <form ref={formRef} onSubmit={handleCheckAndSubmit} className="grid gap-3">
           <input className="input" placeholder="Ваше имя" value={form.name}
             onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} required />
           <input className="input" type="email" placeholder="Email" value={form.email}
@@ -304,6 +306,14 @@ export default function CartPage() {
               {loading ? 'Проверка...' : 'Оформить заказ'}
             </button>
           </div>
+          <button
+            type="button"
+            className="w-full rounded-xl border-2 border-dashed border-slate-300 py-3 text-sm text-slate-500 hover:border-teal-400 hover:text-teal-700 transition"
+            disabled={loading || unavailableIds.length > 0}
+            onClick={() => setPaymentStub(true)}
+          >
+            💳 Оплатить онлайн — {grandTotal} Kč <span className="text-xs opacity-60">(тестовый режим)</span>
+          </button>
         </form>
       </section>
 
@@ -329,6 +339,41 @@ export default function CartPage() {
               </button>
               <button className="btn-outline w-full" onClick={() => setUnavailableModal(null)}>
                 Выбрать другие даты
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment stub modal */}
+      {paymentStub && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl">
+            <div className="text-center">
+              <p className="text-4xl mb-2">💳</p>
+              <h2 className="text-xl font-bold text-slate-800">Онлайн-оплата</h2>
+              <p className="mt-2 text-slate-600 font-semibold text-2xl">{grandTotal} Kč</p>
+              <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
+                ⚠ Тестовый режим — реальная оплата не производится
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="col-span-2 h-10 rounded-lg bg-slate-100 animate-pulse" />
+                <div className="h-10 rounded-lg bg-slate-100 animate-pulse" />
+                <div className="h-10 rounded-lg bg-slate-100 animate-pulse" />
+              </div>
+              <p className="text-center text-xs text-slate-400">Форма оплаты появится здесь</p>
+            </div>
+            <div className="grid gap-2">
+              <button
+                className="btn-primary w-full"
+                onClick={() => { setPaymentStub(false); formRef.current?.requestSubmit() }}
+              >
+                Оплатить {grandTotal} Kč (тест)
+              </button>
+              <button className="btn-outline w-full" onClick={() => setPaymentStub(false)}>
+                Отмена
               </button>
             </div>
           </div>

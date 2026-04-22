@@ -37,7 +37,7 @@ export default function ContactForm({ selectedProduct }) {
   return (
     <section className="card" id="contact">
       <h2 className="mb-1 text-2xl font-semibold">Обратная связь</h2>
-      <p className="mb-4 text-slate-600">Оставьте заявку, и мы ответим на Gmail.</p>
+      <p className="mb-4 text-slate-600">Оставьте заявку, и мы ответим на email.</p>
 
       {selectedProduct && (
         <div className="mb-4 rounded-xl bg-teal-50 p-3 text-sm text-teal-900">

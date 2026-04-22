@@ -48,7 +48,7 @@ export default function ProductModal({ product, onClose }) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl">
+      <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl overflow-hidden">
         <button
           className="absolute right-4 top-4 text-slate-400 hover:text-slate-700 text-2xl leading-none"
           onClick={onClose}
@@ -57,11 +57,14 @@ export default function ProductModal({ product, onClose }) {
           ×
         </button>
 
-        <img
-          src={normalizeImageUrl(product.image_url)}
-          alt={product.name}
-          className="h-56 w-full rounded-t-2xl object-cover"
-        />
+        <div className="flex h-64 w-full items-center justify-center bg-slate-100">
+          <img
+            src={normalizeImageUrl(product.image_url)}
+            alt={product.name}
+            className="max-h-full max-w-full object-contain"
+            onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400/e2e8f0/334155?text=Rent+Prague' }}
+          />
+        </div>
 
         <div className="p-6 space-y-4">
           <div>

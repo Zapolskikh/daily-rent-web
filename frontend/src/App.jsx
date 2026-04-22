@@ -29,7 +29,9 @@ function Layout() {
             <Link to="/" className="btn-outline">Каталог</Link>
             <Link to="/delivery-terms" className="btn-outline">Доставка и условия</Link>
             <CartIcon />
-            <Link to="/admin" className="btn-primary">Админ</Link>
+            {import.meta.env.DEV && (
+              <Link to="/admin" className="btn-primary">Админ</Link>
+            )}
           </nav>
         </div>
       </header>

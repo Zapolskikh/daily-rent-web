@@ -77,7 +77,7 @@ class OrderCreate(BaseModel):
 class Order(OrderCreate):
     id: str
     total_price: float
-    status: Literal["pending", "confirmed", "cancelled"] = "pending"
+    status: Literal["pending", "confirmed", "cancelled", "returned"] = "pending"
     created_at: datetime
 
 
@@ -99,7 +99,7 @@ class AvailableDatesPayload(BaseModel):
 
 
 class OrderStatusUpdate(BaseModel):
-    status: Literal["pending", "confirmed", "cancelled"]
+    status: Literal["pending", "confirmed", "cancelled", "returned"]
 
 
 class NotifyRequest(BaseModel):

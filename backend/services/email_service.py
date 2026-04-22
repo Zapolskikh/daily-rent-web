@@ -74,3 +74,19 @@ def send_order_email(order: Order) -> None:
 
     subject = "[Rent Prague] Новый заказ #" + order.id + " от " + order.name
     _smtp_send(subject, "\n".join(lines))
+
+
+def send_restock_email(email: str, product_name: str) -> None:
+    subject = f"[Rent Prague] «{product_name}» снова доступен для аренды!"
+    body = "\n".join([
+        f"Здравствуйте!",
+        f"",
+        f"Товар «{product_name}», который вас интересовал, снова доступен для аренды.",
+        f"Перейдите на сайт и оформите заявку, пока он не занят.",
+        f"",
+        f"https://prague-rent.vercel.app",
+        f"",
+        f"С уважением,",
+        f"Команда Rent Prague",
+    ])
+    _smtp_send(subject, body)

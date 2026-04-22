@@ -35,10 +35,12 @@ from models import (
     ProductsResponse,
     utc_now,
 )
-from services.email_service import EmailConfigError, send_contact_email, send_order_email
+from services.email_service import EmailConfigError, send_contact_email, send_order_email, send_restock_email
 from services.object_storage import ObjectStorageConfigError, save_product_image
 from services.storage import (
     delete_product_by_id,
+    delete_notifications_for_product,
+    get_notifications_for_product,
     get_reserved_counts,
     increment_reservations,
     init_db,
@@ -47,6 +49,7 @@ from services.storage import (
     read_orders,
     read_products,
     reserve_if_available,
+    save_notification,
     seed_legacy_data_if_empty,
     upsert_product,
     write_available_dates,
@@ -287,10 +290,26 @@ def update_order_status(
         updated = order.model_copy(update={"status": payload.status})
         orders[index] = updated
         write_orders(orders)
-        # Release reservation when order is cancelled
-        if payload.status == "cancelled" and prev_status in ("pending", "confirmed"):
+        # Release reservation when order is cancelled or returned
+        if payload.status in ("cancelled", "returned") and prev_status in ("pending", "confirmed"):
             product_ids = [item.product_id for item in order.items]
             increment_reservations(product_ids, order.dates, delta=-1)
+        # When returned: increment product stock and notify waitlisted customers
+        if payload.status == "returned" and prev_status in ("pending", "confirmed", "cancelled"):
+            products = read_products()
+            product_map = {p.id: p for p in products}
+            for item in order.items:
+                if item.product_id in product_map:
+                    p = product_map[item.product_id]
+                    upsert_product(p.model_copy(update={"stock_quantity": p.stock_quantity + 1}))
+                    notifications = get_notifications_for_product(item.product_id)
+                    for notif in notifications:
+                        try:
+                            send_restock_email(notif["email"], item.product_name)
+                        except Exception:
+                            pass
+                    if notifications:
+                        delete_notifications_for_product(item.product_id)
         return updated
     raise HTTPException(status_code=404, detail="Order not found")
 
@@ -307,6 +326,11 @@ def notify_availability(payload: NotifyRequest) -> MessageResponse:
     try:
         send_telegram_message(text)
     except (TelegramConfigError, Exception):
+        pass
+    # Persist notification request so auto-email can be sent on restock
+    try:
+        save_notification(payload.email, payload.product_id, payload.product_name)
+    except Exception:
         pass
     return MessageResponse(message="Запрос принят")
 

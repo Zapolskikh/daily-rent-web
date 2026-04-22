@@ -1,8 +1,9 @@
 from __future__ import annotations
 import json
 import os
+import uuid
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import DateTime, Integer, JSON, String, create_engine, select
 from sqlalchemy.orm import Mapped, Session, declarative_base, mapped_column, sessionmaker
@@ -69,6 +70,17 @@ class ReservationRecord(Base):
     product_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     date: Mapped[str] = mapped_column(String(10), primary_key=True)  # YYYY-MM-DD
     count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class NotificationRecord(Base):
+    """Stores restock notification requests from customers."""
+    __tablename__ = "notifications"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    email: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
+    product_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    product_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 def init_db() -> None:
@@ -393,3 +405,41 @@ def seed_legacy_data_if_empty() -> None:
     seed_products_from_file_if_empty()
     seed_orders_from_file_if_empty()
     seed_available_dates_from_file_if_empty()
+
+
+# ── Notifications ─────────────────────────────────────────────────────────────
+
+def save_notification(email: str, product_id: str, product_name: str) -> None:
+    """Store a restock notification request. Ignores duplicates."""
+    with _session() as session:
+        existing = session.execute(
+            select(NotificationRecord).where(
+                NotificationRecord.email == email,
+                NotificationRecord.product_id == product_id,
+            )
+        ).scalar_one_or_none()
+        if not existing:
+            session.add(NotificationRecord(
+                id=str(uuid.uuid4()),
+                email=email,
+                product_id=product_id,
+                product_name=product_name,
+                created_at=datetime.now(timezone.utc),
+            ))
+            session.commit()
+
+
+def get_notifications_for_product(product_id: str) -> list[dict]:
+    """Return all notification subscribers for a given product."""
+    with _session() as session:
+        rows = session.execute(
+            select(NotificationRecord).where(NotificationRecord.product_id == product_id)
+        ).scalars().all()
+        return [{"email": r.email, "product_id": r.product_id, "product_name": r.product_name} for r in rows]
+
+
+def delete_notifications_for_product(product_id: str) -> None:
+    """Remove all notification subscriptions for a product (after restock emails sent)."""
+    with _session() as session:
+        session.query(NotificationRecord).filter(NotificationRecord.product_id == product_id).delete()
+        session.commit()
