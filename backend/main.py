@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 import os
+import sys
 import secrets
 from pathlib import Path
+
+# Ensure backend/ is on sys.path when running as a Vercel serverless function
+_backend_dir = Path(__file__).resolve().parent
+if str(_backend_dir) not in sys.path:
+    sys.path.insert(0, str(_backend_dir))
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
