@@ -62,7 +62,8 @@ export default function CartPage() {
       <div className="card text-center py-16 space-y-4">
         <p className="text-3xl">✅</p>
         <h2 className="text-2xl font-bold">Заказ оформлен!</h2>
-        <p className="text-slate-600">Мы свяжемся с вами по email и телефону для подтверждения.</p>
+        <p className="text-slate-600">Счёт-фактура (инвойс) отправлена вам на email.</p>
+        <p className="text-slate-500 text-sm">В день доставки мы заранее свяжемся с вами для уточнения деталей.</p>
         <Link to="/" className="btn-primary inline-block">На главную</Link>
       </div>
     )

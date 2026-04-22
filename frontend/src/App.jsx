@@ -8,10 +8,10 @@ import CartPage from './pages/CartPage'
 function CartIcon() {
   const { totalCount } = useCart()
   return (
-    <Link to="/cart" className="btn-outline relative">
-      Корзина
+    <Link to="/cart" className="rounded-xl bg-white/20 px-4 py-2 text-sm font-medium text-white hover:bg-white/30 transition relative">
+      🛒 Корзина
       {totalCount > 0 && (
-        <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand text-xs text-white">
+        <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-teal-900">
           {totalCount}
         </span>
       )}
@@ -22,20 +22,20 @@ function CartIcon() {
 function Layout() {
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <Link to="/" className="text-xl font-bold text-slate-900">Rent Prague</Link>
-          <nav className="flex gap-3">
-            <Link to="/" className="btn-outline">Каталог</Link>
-            <Link to="/delivery-terms" className="btn-outline">Доставка и условия</Link>
+      <header className="sticky top-0 z-40 bg-gradient-to-r from-teal-800 to-cyan-700 shadow-lg">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <Link to="/" className="text-2xl font-extrabold tracking-tight text-white drop-shadow">Daily Rent Prague</Link>
+          <nav className="flex gap-2">
+            <Link to="/" className="rounded-xl px-4 py-2 text-sm font-medium text-teal-100 hover:bg-white/15 transition">🛍 Каталог</Link>
+            <Link to="/delivery-terms" className="rounded-xl px-4 py-2 text-sm font-medium text-teal-100 hover:bg-white/15 transition">📋 Условия</Link>
             <CartIcon />
             {import.meta.env.DEV && (
-              <Link to="/admin" className="btn-primary">Админ</Link>
+              <Link to="/admin" className="rounded-xl bg-white/20 px-4 py-2 text-sm font-medium text-white hover:bg-white/30 transition">Админ</Link>
             )}
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-7xl px-6 py-8">
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/delivery-terms" element={<DeliveryTermsPage />} />
