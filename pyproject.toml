@@ -11,5 +11,5 @@ dependencies = [
     "pyTelegramBotAPI",
     "SQLAlchemy",
     "cloudinary",
-    "asyncpg",
+    "psycopg2-binary",
 ]
