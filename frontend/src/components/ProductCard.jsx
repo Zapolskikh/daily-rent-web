@@ -1,8 +1,9 @@
 import { API_BASE_URL } from '../lib/api'
 
 function normalizeImageUrl(imageUrl) {
+  if (!imageUrl) return `${API_BASE_URL}/uploads/tmp_image.jpg`
   if (imageUrl.startsWith('http') || imageUrl.startsWith('data:image/')) return imageUrl
-  return 
+  return `${API_BASE_URL}${imageUrl}`
 }
 
 export default function ProductCard({ product, onOpenModal }) {

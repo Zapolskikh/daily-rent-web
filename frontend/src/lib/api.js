@@ -1,6 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 const MOCK_ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'admin123'
+const DEFAULT_PRODUCT_IMAGE_URL = import.meta.env.VITE_DEFAULT_PRODUCT_IMAGE_URL || '/uploads/tmp_image.jpg'
 const STORAGE_KEY_PRODUCTS = 'rent_prague_products'
 const STORAGE_KEY_LEADS = 'rent_prague_leads'
 const STORAGE_KEY_PRODUCTS_VERSION = 'rent_prague_products_version'
@@ -13,15 +14,15 @@ const DEFAULT_CATEGORIES = [
 ]
 
 const DEFAULT_PRODUCTS = [
-  { id: 'grill-001', name: 'Газовый гриль премиум', category: 'party', description: 'Идеально для вечеринок и BBQ.', price_per_day: 550, image_url: '', stock_quantity: 1, options: [] },
-  { id: 'beer-system-001', name: 'Пивная система', category: 'party', description: 'Компактная система розлива.', price_per_day: 480, image_url: '', stock_quantity: 1, options: [] },
-  { id: 'hookah-001', name: 'Кальян премиум', category: 'party', description: 'Полный комплект для вечера.', price_per_day: 350, image_url: '', stock_quantity: 1, options: [] },
-  { id: 'roof-box-001', name: 'Бокс на машину', category: 'travel', description: 'Вместительный автобокс.', price_per_day: 420, image_url: '', stock_quantity: 1, options: [] },
-  { id: 'child-seat-001', name: 'Автокресло', category: 'travel', description: 'Безопасное кресло для ребенка.', price_per_day: 280, image_url: '', stock_quantity: 1, options: [] },
-  { id: 'bike-rack-001', name: 'Крепления для велика', category: 'travel', description: 'Перевозка велосипеда.', price_per_day: 300, image_url: '', stock_quantity: 1, options: [] },
+  { id: 'grill-001', name: 'Газовый гриль премиум', category: 'party', description: 'Идеально для вечеринок и BBQ.', price_per_day: 550, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
+  { id: 'beer-system-001', name: 'Пивная система', category: 'party', description: 'Компактная система розлива.', price_per_day: 480, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
+  { id: 'hookah-001', name: 'Кальян премиум', category: 'party', description: 'Полный комплект для вечера.', price_per_day: 350, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
+  { id: 'roof-box-001', name: 'Бокс на машину', category: 'travel', description: 'Вместительный автобокс.', price_per_day: 420, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
+  { id: 'child-seat-001', name: 'Автокресло', category: 'travel', description: 'Безопасное кресло для ребенка.', price_per_day: 280, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
+  { id: 'bike-rack-001', name: 'Крепления для велика', category: 'travel', description: 'Перевозка велосипеда.', price_per_day: 300, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
   {
     id: 'screwdriver-001', name: 'Шуруповерт', category: 'repair',
-    description: 'Удобный инструмент для ремонта.', price_per_day: 130, image_url: '', stock_quantity: 1,
+    description: 'Удобный инструмент для ремонта.', price_per_day: 130, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1,
     options: [
       { id: 's-bits', name: 'Биты (набор)', price: 30 },
       { id: 's-wood', name: 'Сверла по дереву', price: 40 },
@@ -30,18 +31,18 @@ const DEFAULT_PRODUCTS = [
   },
   {
     id: 'drill-001', name: 'Дрель ударная', category: 'repair',
-    description: 'Для сверления бетона, дерева и металла.', price_per_day: 160, image_url: '', stock_quantity: 1,
+    description: 'Для сверления бетона, дерева и металла.', price_per_day: 160, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1,
     options: [
       { id: 'd-wood', name: 'Сверла по дереву', price: 40 },
       { id: 'd-metal', name: 'Сверла по металлу', price: 40 },
       { id: 'd-concrete', name: 'Сверла по бетону', price: 50 },
     ],
   },
-  { id: 'jigsaw-001', name: 'Лобзик', category: 'repair', description: 'Резка дерева и листовых материалов.', price_per_day: 130, image_url: '', stock_quantity: 1, options: [] },
-  { id: 'vacuum-001', name: 'Строительный пылесос', category: 'repair', description: 'Мокро-сухая уборка.', price_per_day: 199, image_url: '', stock_quantity: 1, options: [] },
-  { id: 'laser-level-001', name: 'Лазерный уровень', category: 'repair', description: 'Точная разметка стен.', price_per_day: 149, image_url: '', stock_quantity: 1, options: [] },
-  { id: 'detector-001', name: 'Детектор проводки', category: 'repair', description: 'Проверка стены перед сверлением.', price_per_day: 79, image_url: '', stock_quantity: 1, options: [] },
-  { id: 'sander-001', name: 'Шлифмашина', category: 'repair', description: 'Финишная обработка поверхностей.', price_per_day: 89, image_url: '', stock_quantity: 1, options: [] },
+  { id: 'jigsaw-001', name: 'Лобзик', category: 'repair', description: 'Резка дерева и листовых материалов.', price_per_day: 130, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
+  { id: 'vacuum-001', name: 'Строительный пылесос', category: 'repair', description: 'Мокро-сухая уборка.', price_per_day: 199, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
+  { id: 'laser-level-001', name: 'Лазерный уровень', category: 'repair', description: 'Точная разметка стен.', price_per_day: 149, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
+  { id: 'detector-001', name: 'Детектор проводки', category: 'repair', description: 'Проверка стены перед сверлением.', price_per_day: 79, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
+  { id: 'sander-001', name: 'Шлифмашина', category: 'repair', description: 'Финишная обработка поверхностей.', price_per_day: 89, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
 ]
 
 function isNetworkError(error) {
@@ -111,7 +112,10 @@ export async function getCategories() {
 
 export async function getProducts(category) {
   if (USE_MOCK) {
-    const list = loadProductsFromStorage()
+    const list = loadProductsFromStorage().map((item) => ({
+      ...item,
+      image_url: item.image_url || DEFAULT_PRODUCT_IMAGE_URL,
+    }))
     return { products: category ? list.filter((item) => item.category === category) : list }
   }
   const query = category ? `?category=${encodeURIComponent(category)}` : ''

@@ -31,10 +31,13 @@ from models import (
     utc_now,
 )
 from services.email_service import EmailConfigError, send_contact_email, send_order_email
+from services.object_storage import ObjectStorageConfigError, save_product_image
 from services.storage import (
+    init_db,
     read_available_dates,
     read_orders,
     read_products,
+    seed_legacy_data_if_empty,
     write_available_dates,
     write_orders,
     write_products,
@@ -50,7 +53,32 @@ BASE_DIR = Path(__file__).resolve().parent
 UPLOADS_DIR = BASE_DIR / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
+
+def _detect_default_product_image_url() -> str:
+    from_env = os.getenv("DEFAULT_PRODUCT_IMAGE_URL", "").strip()
+    if from_env:
+        return from_env
+
+    preferred = UPLOADS_DIR / "tmp_image.jpg"
+    if preferred.exists():
+        return "/uploads/tmp_image.jpg"
+
+    allowed = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"}
+    for item in sorted(UPLOADS_DIR.iterdir(), key=lambda p: p.name.lower()):
+        if item.is_file() and item.suffix.lower() in allowed:
+            return f"/uploads/{item.name}"
+    return ""
+
+
+DEFAULT_PRODUCT_IMAGE_URL = _detect_default_product_image_url()
+
 app = FastAPI(title="Rent Prague API", version="2.0.0")
+
+
+@app.on_event("startup")
+def startup() -> None:
+    init_db()
+    seed_legacy_data_if_empty()
 
 origins = [os.getenv("APP_ORIGIN", "http://localhost:5173")]
 app.add_middleware(
@@ -123,6 +151,11 @@ def get_categories() -> CategoriesResponse:
 @app.get("/api/products", response_model=ProductsResponse)
 def get_products(category: str | None = None) -> ProductsResponse:
     products = read_products()
+    if DEFAULT_PRODUCT_IMAGE_URL:
+        products = [
+            item if item.image_url else item.model_copy(update={"image_url": DEFAULT_PRODUCT_IMAGE_URL})
+            for item in products
+        ]
     if category:
         products = [item for item in products if item.category == category]
     return ProductsResponse(products=products)
@@ -260,17 +293,16 @@ def upload_image(
     file: UploadFile = File(...),
     _: str = Depends(verify_admin),
 ) -> dict[str, str]:
-    allowed = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
-    if file.content_type not in allowed:
-        raise HTTPException(status_code=400, detail="Unsupported image format")
-    extension = allowed[file.content_type]
-    file_name = f"{secrets.token_urlsafe(10)}.{extension}"
-    file_path = UPLOADS_DIR / file_name
     data = file.file.read()
     if len(data) > 5 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large (max 5MB)")
-    file_path.write_bytes(data)
-    return {"image_url": f"/uploads/{file_name}"}
+    try:
+        image_url = save_product_image(data, file.content_type or "")
+    except ObjectStorageConfigError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Failed to upload image") from exc
+    return {"image_url": image_url}
 
 
 # ─── Admin: products ──────────────────────────────────────────────────────────
@@ -279,9 +311,11 @@ def upload_image(
 def create_product(payload: ProductCreate, _: str = Depends(verify_admin)) -> Product:
     products = read_products()
     now = utc_now()
+    image_url = (payload.image_url or "").strip() or DEFAULT_PRODUCT_IMAGE_URL
     new_product = Product(
         id=secrets.token_urlsafe(8),
         **payload.model_dump(),
+        image_url=image_url,
         created_at=now,
         updated_at=now,
     )
@@ -297,6 +331,8 @@ def update_product(product_id: str, payload: ProductUpdate, _: str = Depends(ver
         if item.id != product_id:
             continue
         updates = payload.model_dump(exclude_unset=True)
+        if "image_url" in updates:
+            updates["image_url"] = (updates.get("image_url") or "").strip() or DEFAULT_PRODUCT_IMAGE_URL
         updated = item.model_copy(update={**updates, "updated_at": utc_now()})
         products[index] = updated
         write_products(products)

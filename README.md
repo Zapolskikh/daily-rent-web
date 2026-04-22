@@ -4,8 +4,9 @@
 
 ## Стек
 
-- Backend: FastAPI (Python), файловое хранение JSON
+- Backend: FastAPI (Python), PostgreSQL (Neon)
 - Frontend: React + Vite + Tailwind CSS
+- Хранение изображений: Cloudinary (object storage)
 - Деплой: Vercel (frontend + Python API)
 
 ## Функционал
@@ -40,11 +41,16 @@ cp .env.example .env
 
 Заполните в `backend/.env`:
 
+- `DATABASE_URL` (Neon connection string)
 - `APP_SECRET`
 - `ADMIN_PASSWORD`
 - `GMAIL_SENDER`
 - `GMAIL_APP_PASSWORD` (Google App Password)
 - `GMAIL_RECEIVER`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+- `CLOUDINARY_FOLDER` (опционально)
 
 Запуск:
 
@@ -78,15 +84,23 @@ npm run dev
 ## Деплой на Vercel
 
 1. Подключите репозиторий в Vercel.
+
 2. В Project Settings → Environment Variables добавьте:
-   - `APP_ORIGIN` = ваш frontend URL
-   - `APP_SECRET`
-   - `ADMIN_PASSWORD`
-   - `GMAIL_SENDER`
-   - `GMAIL_APP_PASSWORD`
-   - `GMAIL_RECEIVER`
-  - `VITE_API_BASE_URL` = ваш production домен (например, <https://your-domain.vercel.app>)
-3. Деплой использует `vercel.json` в корне.
+
+- `DATABASE_URL` (Neon URL, с `sslmode=require`)
+- `APP_ORIGIN` = ваш frontend URL
+- `APP_SECRET`
+- `ADMIN_PASSWORD`
+- `GMAIL_SENDER`
+- `GMAIL_APP_PASSWORD`
+- `GMAIL_RECEIVER`
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
+- `CLOUDINARY_FOLDER` (опционально)
+- `VITE_API_BASE_URL` = ваш production домен (например, <https://your-domain.vercel.app>)
+
+1. Деплой использует `vercel.json` в корне.
 
 ## Примечания по best practices
 
