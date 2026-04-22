@@ -170,6 +170,12 @@ export async function getAvailableDates() {
   catch (error) { if (isNetworkError(error)) return { dates: [] }; throw error }
 }
 
+export async function getBookedSlots() {
+  if (USE_MOCK) return { booked_slots: {} }
+  try { return await request('/api/booked-slots') }
+  catch (error) { if (isNetworkError(error)) return { booked_slots: {} }; throw error }
+}
+
 // ── Availability check ─────────────────────────────────────────────────────────
 
 export async function checkAvailability(data) {

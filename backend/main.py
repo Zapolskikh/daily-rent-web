@@ -218,6 +218,25 @@ def check_availability(payload: AvailabilityCheck) -> AvailabilityResult:
     return AvailabilityResult(unavailable_product_ids=unavailable)
 
 
+@app.get("/api/booked-slots")
+def get_booked_slots() -> dict:
+    """
+    Returns a dict of {date: [slot, ...]} for all active (pending/confirmed) orders.
+    Used by the frontend to grey out already-booked slots.
+    """
+    orders = [o for o in read_orders() if o.status in ("confirmed", "pending")]
+    result: dict[str, list[str]] = {}
+    for order in orders:
+        if not order.delivery_slot:
+            continue
+        for date in order.dates:
+            if date not in result:
+                result[date] = []
+            if order.delivery_slot not in result[date]:
+                result[date].append(order.delivery_slot)
+    return {"booked_slots": result}
+
+
 # ─── Orders ───────────────────────────────────────────────────────────────────
 
 @app.post("/api/orders", response_model=Order)
@@ -227,15 +246,38 @@ def create_order(payload: OrderCreate) -> Order:
         products_map = {p.id: p for p in read_products()}
         active_orders = [o for o in read_orders() if o.status in ("confirmed", "pending")]
         requested_dates = set(payload.dates)
+
+        # Count bookings per product per date
         booked: dict[str, int] = {}
+        # Count bookings per product per date+slot
+        slot_booked: dict[str, int] = {}
         for order in active_orders:
-            if not set(order.dates) & requested_dates:
+            overlap = set(order.dates) & requested_dates
+            if not overlap:
                 continue
             for item in order.items:
                 booked[item.product_id] = booked.get(item.product_id, 0) + 1
+                # slot-level key: product_id|date|slot
+                if payload.delivery_slot and order.delivery_slot == payload.delivery_slot:
+                    for d in overlap:
+                        key = f"{item.product_id}|{d}|{payload.delivery_slot}"
+                        slot_booked[key] = slot_booked.get(key, 0) + 1
+
         for item in payload.items:
             product = products_map.get(item.product_id)
             stock = product.stock_quantity if product else 0
+
+            # Check slot-level conflict first (most specific)
+            if payload.delivery_slot:
+                for d in requested_dates:
+                    key = f"{item.product_id}|{d}|{payload.delivery_slot}"
+                    if slot_booked.get(key, 0) >= stock:
+                        raise HTTPException(
+                            status_code=409,
+                            detail=f"Товар «{item.product_name}» уже забронирован на {d} {payload.delivery_slot}"
+                        )
+
+            # General date-level conflict
             if booked.get(item.product_id, 0) >= stock:
                 raise HTTPException(
                     status_code=409,

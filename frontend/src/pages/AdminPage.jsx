@@ -531,7 +531,7 @@ export default function AdminPage() {
               <span className="flex items-center gap-1.5">
                 <span className="relative inline-block h-4 w-4">
                   <span className="h-4 w-4 rounded bg-teal-600 inline-block"/>
-                  <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-blue-500 border border-white"/>
+                  <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-blue-500 border border-white"/>
                 </span>
                 <b>Есть активный заказ (ожидает/подтверждён)</b>
               </span>
@@ -556,12 +556,12 @@ export default function AdminPage() {
                     else if (inDb && !selected) cls = 'bg-red-100 text-red-700 border border-red-400 hover:bg-red-200'
                     else if (!inDb && selected) cls = 'bg-green-200 text-green-800 border border-green-500 hover:bg-green-300'
                     if (isFocused) cls += ' ring-2 ring-offset-1 ring-amber-400'
+                    const isOccupied = occupiedDates.has(iso)
                     return (
                       <div key={iso} className="relative">
                         <button
                           onClick={() => {
                             if (selected) {
-                              // already selected → just focus for slot editing
                               focusDateForSlots(iso)
                             } else {
                               toggleDate(iso)
@@ -569,7 +569,7 @@ export default function AdminPage() {
                             }
                           }}
                           onContextMenu={(e) => { e.preventDefault(); toggleDate(iso) }}
-                          title={selected ? 'Нажмите — редактировать слоты | ПКМ — убрать дату' : 'Нажмите, чтобы добавить'}
+                          title={(selected ? 'Нажмите — редактировать слоты | ПКМ — убрать дату' : 'Нажмите, чтобы добавить') + (isOccupied ? ' | 🔵 Есть активный заказ' : '')}
                           className={`h-9 w-9 rounded-lg text-sm font-medium transition ${cls}`}>
                           {day}
                         </button>
@@ -577,6 +577,9 @@ export default function AdminPage() {
                           <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center pointer-events-none">
                             {slotCount}
                           </span>
+                        )}
+                        {isOccupied && (
+                          <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-blue-500 border-2 border-white pointer-events-none" />
                         )}
                       </div>
                     )

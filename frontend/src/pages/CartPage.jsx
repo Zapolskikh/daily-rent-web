@@ -3,7 +3,7 @@ import 'react-datepicker/dist/react-datepicker.css'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
-import { checkAvailability, createOrder, getAvailableDates, notifyAvailability } from '../lib/api'
+import { checkAvailability, createOrder, getAvailableDates, getBookedSlots, notifyAvailability } from '../lib/api'
 import { ru } from 'date-fns/locale/ru'
 
 registerLocale('ru', ru)
@@ -16,6 +16,7 @@ export default function CartPage() {
   const [selectedDate, setSelectedDate] = useState(null)
   const [availableDates, setAvailableDates] = useState([])   // ['YYYY-MM-DD', ...]
   const [availableSlots, setAvailableSlots] = useState([])   // ['YYYY-MM-DD:HH:MM-HH:MM', ...]
+  const [bookedSlots, setBookedSlots] = useState({})         // { 'YYYY-MM-DD': ['HH:MM-HH:MM', ...] }
   const [selectedSlot, setSelectedSlot] = useState('')
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', comment: '' })
@@ -32,6 +33,9 @@ export default function CartPage() {
         setAvailableDates(raw.filter((d) => !d.includes(':')))
         setAvailableSlots(raw.filter((d) => /^\d{4}-\d{2}-\d{2}:/.test(d)))
       })
+      .catch(() => {})
+    getBookedSlots()
+      .then((data) => setBookedSlots(data.booked_slots || {}))
       .catch(() => {})
   }, [])
 
@@ -243,14 +247,20 @@ export default function CartPage() {
                 {slotsForDate.map((slot) => {
                   const h = parseInt(slot.split(':')[0], 10)
                   const isSelected = selectedSlot === slot
+                  const isBooked = (bookedSlots[selectedIso] || []).includes(slot)
                   return (
                     <button key={slot} type="button"
-                      onClick={() => setSelectedSlot(isSelected ? '' : slot)}
+                      disabled={isBooked}
+                      onClick={() => !isBooked && setSelectedSlot(isSelected ? '' : slot)}
+                      title={isBooked ? 'Слот уже занят' : ''}
                       className={`px-4 py-2 rounded-xl border text-sm font-medium transition
-                        ${isSelected
-                          ? 'bg-teal-600 text-white border-teal-600'
-                          : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100 hover:border-teal-400'}`}>
+                        ${isBooked
+                          ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through'
+                          : isSelected
+                            ? 'bg-teal-600 text-white border-teal-600'
+                            : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100 hover:border-teal-400'}`}>
                       {h}:00 – {h + 1}:00
+                      {isBooked && <span className="ml-1 text-xs">✕</span>}
                     </button>
                   )
                 })}
