@@ -358,3 +358,26 @@ def delete_product(product_id: str, _: str = Depends(verify_admin)) -> MessageRe
 def set_available_dates(payload: AvailableDatesPayload, _: str = Depends(verify_admin)) -> MessageResponse:
     write_available_dates(payload.dates)
     return MessageResponse(message="Dates updated")
+
+
+# ─── Admin: debug / maintenance ───────────────────────────────────────────────
+
+@app.get("/api/admin/debug/products-raw", response_model=list)
+def debug_products_raw(_: str = Depends(verify_admin)) -> list:
+    """Return raw JSON data from DB without Pydantic validation."""
+    from sqlalchemy import select as sa_select
+    from services.storage import _session, ProductRecord
+    with _session() as session:
+        rows = session.execute(sa_select(ProductRecord)).scalars().all()
+    return [{"id": row.id, "data": row.data} for row in rows]
+
+
+@app.delete("/api/admin/debug/reset-products", response_model=MessageResponse)
+def debug_reset_products(_: str = Depends(verify_admin)) -> MessageResponse:
+    """Wipe all products from DB and re-seed from products.json."""
+    from services.storage import _session, ProductRecord, seed_products_from_file_if_empty
+    with _session() as session:
+        session.query(ProductRecord).delete()
+        session.commit()
+    seed_products_from_file_if_empty()
+    return MessageResponse(message="Products reset from seed file")
