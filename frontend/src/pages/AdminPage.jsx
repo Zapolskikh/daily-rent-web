@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  addComment,
   addNote,
   adminLogin,
   createProduct,
   debugGetProductsRaw,
   debugResetProducts,
+  deleteComment,
   deleteNote,
   deleteProduct,
   getAvailableDates,
@@ -90,6 +92,8 @@ export default function AdminPage() {
   const [notes, setNotes] = useState([])
   const [noteText, setNoteText] = useState('')
   const [noteSaving, setNoteSaving] = useState(false)
+  const [commentInputs, setCommentInputs] = useState({}) // { noteId: text }
+  const [commentSaving, setCommentSaving] = useState({}) // { noteId: bool }
 
   async function refreshProducts() {
     const payload = await getProducts('')
@@ -816,27 +820,112 @@ export default function AdminPage() {
           ) : (
             <div className="space-y-3">
               {notes.map((note) => (
-                <article key={note.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-slate-800 whitespace-pre-wrap break-words">{note.text}</p>
-                    <p className="mt-2 text-xs text-slate-400">
-                      {new Date(note.created_at).toLocaleString('ru-RU', {
-                        day: 'numeric', month: 'long', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
-                      })}
-                    </p>
+                <article key={note.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                  {/* Note header */}
+                  <div className="flex gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-slate-800 whitespace-pre-wrap break-words">{note.text}</p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {new Date(note.created_at).toLocaleString('ru-RU', {
+                          day: 'numeric', month: 'long', year: 'numeric',
+                          hour: '2-digit', minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                    <button
+                      className="shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-red-100 hover:text-red-600 transition"
+                      title="Удалить заметку"
+                      onClick={async () => {
+                        try {
+                          await deleteNote(note.id, token)
+                          setNotes((prev) => prev.filter((n) => n.id !== note.id))
+                        } catch { }
+                      }}>
+                      ✕
+                    </button>
                   </div>
-                  <button
-                    className="shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-red-100 hover:text-red-600 transition"
-                    title="Удалить заметку"
-                    onClick={async () => {
-                      try {
-                        await deleteNote(note.id, token)
-                        setNotes((prev) => prev.filter((n) => n.id !== note.id))
-                      } catch { }
-                    }}>
-                    ✕
-                  </button>
+
+                  {/* Comments */}
+                  {(note.comments || []).length > 0 && (
+                    <ul className="space-y-1.5 pl-3 border-l-2 border-slate-200">
+                      {(note.comments || []).map((c) => (
+                        <li key={c.id} className="flex gap-2 items-start">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-slate-700 whitespace-pre-wrap break-words">{c.text}</p>
+                            <p className="text-[10px] text-slate-400">
+                              {new Date(c.created_at).toLocaleString('ru-RU', {
+                                day: 'numeric', month: 'long',
+                                hour: '2-digit', minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                          <button
+                            className="shrink-0 h-5 w-5 rounded flex items-center justify-center text-slate-300 hover:bg-red-100 hover:text-red-500 transition text-xs"
+                            title="Удалить комментарий"
+                            onClick={async () => {
+                              try {
+                                await deleteComment(note.id, c.id, token)
+                                setNotes((prev) => prev.map((n) =>
+                                  n.id === note.id
+                                    ? { ...n, comments: (n.comments || []).filter((x) => x.id !== c.id) }
+                                    : n
+                                ))
+                              } catch { }
+                            }}>
+                            ✕
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {/* Add comment input */}
+                  <div className="flex gap-2">
+                    <input
+                      className="input flex-1 text-sm py-1"
+                      placeholder="Добавить комментарий..."
+                      value={commentInputs[note.id] || ''}
+                      onChange={(e) => setCommentInputs((prev) => ({ ...prev, [note.id]: e.target.value }))}
+                      onKeyDown={async (e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          const text = (commentInputs[note.id] || '').trim()
+                          if (!text || commentSaving[note.id]) return
+                          setCommentSaving((prev) => ({ ...prev, [note.id]: true }))
+                          try {
+                            const comment = await addComment(note.id, text, token)
+                            setNotes((prev) => prev.map((n) =>
+                              n.id === note.id
+                                ? { ...n, comments: [...(n.comments || []), comment] }
+                                : n
+                            ))
+                            setCommentInputs((prev) => ({ ...prev, [note.id]: '' }))
+                          } catch { }
+                          finally { setCommentSaving((prev) => ({ ...prev, [note.id]: false })) }
+                        }
+                      }}
+                    />
+                    <button
+                      className="btn-secondary text-xs px-3 py-1"
+                      disabled={!(commentInputs[note.id] || '').trim() || commentSaving[note.id]}
+                      onClick={async () => {
+                        const text = (commentInputs[note.id] || '').trim()
+                        if (!text || commentSaving[note.id]) return
+                        setCommentSaving((prev) => ({ ...prev, [note.id]: true }))
+                        try {
+                          const comment = await addComment(note.id, text, token)
+                          setNotes((prev) => prev.map((n) =>
+                            n.id === note.id
+                              ? { ...n, comments: [...(n.comments || []), comment] }
+                              : n
+                          ))
+                          setCommentInputs((prev) => ({ ...prev, [note.id]: '' }))
+                        } catch { }
+                        finally { setCommentSaving((prev) => ({ ...prev, [note.id]: false })) }
+                      }}>
+                      {commentSaving[note.id] ? '...' : '↵'}
+                    </button>
+                  </div>
                 </article>
               ))}
             </div>

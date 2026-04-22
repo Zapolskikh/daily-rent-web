@@ -357,6 +357,21 @@ export async function deleteNote(noteId, token) {
   })
 }
 
+export async function addComment(noteId, text, token) {
+  return request(`/api/admin/notes/${noteId}/comments`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ text }),
+  })
+}
+
+export async function deleteComment(noteId, commentId, token) {
+  return request(`/api/admin/notes/${noteId}/comments/${commentId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
 // ── Admin: debug ──────────────────────────────────────────────────────────────
 
 export async function debugGetProductsRaw(token) {

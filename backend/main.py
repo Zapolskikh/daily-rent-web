@@ -328,6 +328,7 @@ def add_note(payload: dict, _: str = Depends(verify_admin)) -> dict:
         "id": secrets.token_urlsafe(8),
         "text": text,
         "created_at": utc_now().isoformat(),
+        "comments": [],
     }
     notes.insert(0, note)  # newest first
     write_notes(notes)
@@ -342,6 +343,39 @@ def delete_note(note_id: str, _: str = Depends(verify_admin)) -> dict:
         raise HTTPException(status_code=404, detail="Note not found")
     write_notes(new_notes)
     return {"ok": True}
+
+
+@app.post("/api/admin/notes/{note_id}/comments")
+def add_comment(note_id: str, payload: dict, _: str = Depends(verify_admin)) -> dict:
+    text = (payload.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Comment text is required")
+    notes = read_notes()
+    for note in notes:
+        if note["id"] == note_id:
+            comment = {
+                "id": secrets.token_urlsafe(8),
+                "text": text,
+                "created_at": utc_now().isoformat(),
+            }
+            note.setdefault("comments", []).append(comment)
+            write_notes(notes)
+            return comment
+    raise HTTPException(status_code=404, detail="Note not found")
+
+
+@app.delete("/api/admin/notes/{note_id}/comments/{comment_id}")
+def delete_comment(note_id: str, comment_id: str, _: str = Depends(verify_admin)) -> dict:
+    notes = read_notes()
+    for note in notes:
+        if note["id"] == note_id:
+            before = len(note.get("comments", []))
+            note["comments"] = [c for c in note.get("comments", []) if c["id"] != comment_id]
+            if len(note["comments"]) == before:
+                raise HTTPException(status_code=404, detail="Comment not found")
+            write_notes(notes)
+            return {"ok": True}
+    raise HTTPException(status_code=404, detail="Note not found")
 
 
 # ─── Admin: login ─────────────────────────────────────────────────────────────
