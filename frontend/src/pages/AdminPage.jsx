@@ -123,6 +123,11 @@ export default function AdminPage() {
       setSelectedDates(dates)
       setDatesMessage('')
     } catch { }
+    // also refresh orders so blue dots are up-to-date
+    try {
+      const payload = await getOrders(token)
+      setOrders(payload.orders || [])
+    } catch { }
   }
 
   useEffect(() => {
@@ -463,6 +468,21 @@ export default function AdminPage() {
         const hasChanges = JSON.stringify([...selectedDates].sort()) !== JSON.stringify([...savedDates].sort())
         const savedDateSet = new Set(savedDates)
         const selectedDateSet = new Set(selectedDates)
+
+        // Build occupied info from pending/confirmed orders
+        const activeOrders = orders.filter(o => o.status === 'pending' || o.status === 'confirmed')
+        const occupiedDates = new Set()
+        // occupiedSlotsByDate: { 'YYYY-MM-DD': Set<'HH:MM-HH:MM'> }
+        const occupiedSlotsByDate = {}
+        activeOrders.forEach(order => {
+          ;(order.dates || []).forEach(date => {
+            occupiedDates.add(date)
+            if (order.delivery_slot) {
+              if (!occupiedSlotsByDate[date]) occupiedSlotsByDate[date] = new Set()
+              occupiedSlotsByDate[date].add(order.delivery_slot)
+            }
+          })
+        })
         return (
           <section className="card space-y-6">
             {/* Header */}
@@ -492,6 +512,13 @@ export default function AdminPage() {
               <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded bg-green-200 border border-green-500 inline-block"/>Будет добавлено</span>
               <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded bg-red-100 border border-red-400 inline-block"/>Будет удалено</span>
               <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded bg-slate-100 inline-block"/>Не выбрано</span>
+              <span className="flex items-center gap-1.5">
+                <span className="relative inline-block h-4 w-4">
+                  <span className="h-4 w-4 rounded bg-teal-600 inline-block"/>
+                  <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-blue-500 border border-white"/>
+                </span>
+                <b>Есть активный заказ (ожидает/подтверждён)</b>
+              </span>
             </div>
 
             {/* Date grid */}
@@ -580,15 +607,19 @@ export default function AdminPage() {
                         const key = `${focusedDate}:${slot}`
                         const inDb = savedDateSet.has(key)
                         const selected = selectedDateSet.has(key)
+                        const isOccupied = occupiedSlotsByDate[focusedDate]?.has(slot)
                         let cls = 'border-slate-200 text-slate-500 hover:border-teal-400 hover:text-teal-700'
-                        if (inDb && selected) cls = 'bg-teal-600 text-white border-teal-600'
+                        if (isOccupied) cls = 'bg-blue-500 text-white border-blue-500 cursor-default'
+                        else if (inDb && selected) cls = 'bg-teal-600 text-white border-teal-600'
                         else if (inDb && !selected) cls = 'bg-red-50 text-red-700 border-red-400'
                         else if (!inDb && selected) cls = 'bg-green-100 text-green-800 border-green-500'
+                        const occupiedTitle = isOccupied ? ' · 🔵 Занято активным заказом' : ''
                         return (
-                          <button key={slot} onClick={() => toggleSlot(slot)} disabled={!isDateSelected}
-                            title={inDb && selected ? 'В БД · нажмите, чтобы убрать' : inDb ? 'Будет удалено' : selected ? 'Будет добавлено' : 'Нажмите, чтобы добавить'}
+                          <button key={slot} onClick={() => !isOccupied && toggleSlot(slot)} disabled={!isDateSelected}
+                            title={(inDb && selected ? 'В БД · нажмите, чтобы убрать' : inDb ? 'Будет удалено' : selected ? 'Будет добавлено' : 'Нажмите, чтобы добавить') + occupiedTitle}
                             className={`px-3 py-2 rounded-xl border text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed ${cls}`}>
                             {h}:00 – {h + 1}:00
+                            {isOccupied && <span className="ml-1 text-xs opacity-80">●</span>}
                           </button>
                         )
                       })}

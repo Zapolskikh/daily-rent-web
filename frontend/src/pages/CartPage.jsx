@@ -88,6 +88,12 @@ export default function CartPage() {
         .map(d => d.slice(startIso.length + 1))  // strip 'YYYY-MM-DD:' prefix
     : []
 
+  // Only highlight dates that have ≥1 slot configured
+  const datesWithSlots = availableDates.filter(d =>
+    availableSlots.some(s => s.startsWith(d + ':'))
+  )
+  const availableDateObjs = datesWithSlots.map((d) => new Date(d + 'T00:00:00'))
+
   function isDeliveryDate(date) {
     const iso = date.toISOString().slice(0, 10)
     return availableDates.includes(iso)
@@ -106,6 +112,19 @@ export default function CartPage() {
     if (deliveryType === 'delivery' && !startDate) {
       setSubmitError('Выберите дату начала аренды')
       return
+    }
+
+    if (deliveryType === 'delivery' && startDate) {
+      const iso = startDate.toISOString().slice(0, 10)
+      const slots = availableSlots.filter(d => d.startsWith(iso + ':'))
+      if (slots.length > 0 && !selectedSlot) {
+        setSubmitError('Выберите временной слот доставки')
+        return
+      }
+      if (slots.length === 0 && !form.comment.trim()) {
+        setSubmitError('Для выбранной даты нет настроенных слотов — укажите удобное время доставки в комментарии')
+        return
+      }
     }
 
     setLoading(true)
@@ -154,8 +173,6 @@ export default function CartPage() {
       await notifyAvailability({ email: form.email || 'unknown', product_id: productId, product_name: productName })
     } catch {}
   }
-
-  const availableDateObjs = availableDates.map((d) => new Date(d + 'T00:00:00'))
 
   return (
     <div className="space-y-6">
