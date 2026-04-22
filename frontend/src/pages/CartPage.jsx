@@ -26,6 +26,9 @@ export default function CartPage() {
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [returnType, setReturnType] = useState('self')      // 'self' | 'pickup'
+  const [paymentMethod, setPaymentMethod] = useState('cash') // 'cash' | 'card' | 'transfer' | 'crypto'
+  const [depositMethod, setDepositMethod] = useState('same') // 'same' | 'cash'
   const [paymentStub, setPaymentStub] = useState(false)
   const formRef = useRef(null)
 
@@ -86,6 +89,15 @@ export default function CartPage() {
   })
   const grandTotal = itemTotals.reduce((s, v) => s + v, 0)
 
+  const deliveryFee = (() => {
+    const needsDelivery = deliveryType === 'delivery'
+    const needsReturn = returnType === 'pickup'
+    if (needsDelivery && needsReturn) return 249
+    if (needsDelivery || needsReturn) return 129
+    return 0
+  })()
+  const totalWithFee = grandTotal + deliveryFee
+
   // Only available dates can be picked; grey out the rest
   function filterDate(date) {
     const iso = date.toISOString().slice(0, 10)
@@ -97,12 +109,12 @@ export default function CartPage() {
     setSubmitError('')
     setUnavailableIds([])
 
-    if (deliveryType === 'delivery' && !selectedDate) {
-      setSubmitError('Выберите дату доставки')
+    if (!selectedDate) {
+      setSubmitError(deliveryType === 'delivery' ? 'Выберите дату доставки' : 'Выберите дату самовывоза')
       return
     }
-    if (deliveryType === 'delivery' && slotsForDate.length > 0 && !selectedSlot) {
-      setSubmitError('Выберите временной слот доставки')
+    if (slotsForDate.length > 0 && !selectedSlot) {
+      setSubmitError(deliveryType === 'delivery' ? 'Выберите временной слот доставки' : 'Выберите время самовывоза')
       return
     }
 
@@ -131,6 +143,10 @@ export default function CartPage() {
         ...form,
         items: orderItems,
         delivery_type: deliveryType,
+        return_type: returnType,
+        payment_method: paymentMethod,
+        deposit_method: depositMethod,
+        delivery_fee: deliveryFee,
         dates,
         delivery_slot: selectedSlot || null,
       })
@@ -209,30 +225,73 @@ export default function CartPage() {
             </article>
           )
         })}
-        <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-          <span className="font-semibold text-lg">Итого ({days} дн.):</span>
-          <strong className="text-xl text-brand">{grandTotal} Kč</strong>
+        <div className="space-y-1 pt-2 border-t border-slate-200">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-600">Аренда ({days} дн.):</span>
+            <span>{grandTotal} Kč</span>
+          </div>
+          {deliveryFee > 0 && (
+            <div className="flex justify-between items-center text-slate-600">
+              <span>Доставка / отвоз:</span>
+              <span>{deliveryFee} Kč</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center pt-1 border-t border-slate-100">
+            <span className="font-semibold text-lg">Итого:</span>
+            <strong className="text-xl text-brand">{totalWithFee} Kč</strong>
+          </div>
         </div>
       </section>
 
       {/* Delivery */}
       <section className="card space-y-4">
-        <h2 className="text-xl font-semibold">Способ получения</h2>
-        <div className="flex gap-4">
-          {[['delivery', 'Доставка'], ['pickup', 'Самовывоз']].map(([v, l]) => (
-            <label key={v} className="flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="delivery" value={v} checked={deliveryType === v}
-                onChange={() => setDeliveryType(v)} className="accent-teal-600" />
-              <span className="font-medium">{l}</span>
-            </label>
-          ))}
+        <h2 className="text-xl font-semibold">Получение и возврат</h2>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Получение товара</p>
+            <div className="flex flex-col gap-2">
+              {[['delivery', '🚚 Доставка по адресу'], ['pickup', '🏠 Самовывоз (Прага 7)']].map(([v, l]) => (
+                <label key={v} className={`flex items-center gap-2 cursor-pointer rounded-xl border p-3 transition ${deliveryType === v ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                  <input type="radio" name="delivery" value={v} checked={deliveryType === v}
+                    onChange={() => setDeliveryType(v)} className="accent-teal-600" />
+                  <span className="text-sm font-medium">{l}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Возврат товара</p>
+            <div className="flex flex-col gap-2">
+              {[['pickup', '🚚 Забираем сами'], ['self', '🏠 Самоотвоз (Прага 7)']].map(([v, l]) => (
+                <label key={v} className={`flex items-center gap-2 cursor-pointer rounded-xl border p-3 transition ${returnType === v ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                  <input type="radio" name="returnType" value={v} checked={returnType === v}
+                    onChange={() => setReturnType(v)} className="accent-teal-600" />
+                  <span className="text-sm font-medium">{l}</span>
+                </label>
+              ))}
+            </div>
+          </div>
         </div>
+        {deliveryFee > 0 ? (
+          <div className="rounded-xl bg-teal-50 border border-teal-200 px-4 py-3 text-sm text-teal-800 flex justify-between items-center">
+            <span>🚛 Доставка / отвоз{deliveryFee === 249 ? ' (туда и обратно)' : ' (одна поездка)'}</span>
+            <strong>{deliveryFee} Kč</strong>
+          </div>
+        ) : (
+          <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">
+            ✅ Самовывоз и самоотвоз в Прагу 7 — <strong>бесплатно</strong>
+          </div>
+        )}
 
         {/* Date picker */}
         <div>
-          <h3 className="mb-1 font-medium text-slate-700">Дата доставки</h3>
+          <h3 className="mb-1 font-medium text-slate-700">
+            {deliveryType === 'delivery' ? 'Дата доставки' : 'Дата самовывоза'}
+          </h3>
           <p className="mb-3 text-sm text-slate-500">
-            Светло-зелёные даты — доступны для доставки. Серые — недоступны.
+            {deliveryType === 'delivery'
+              ? 'Светло-зелёные даты — доступны для доставки. Серые — недоступны.'
+              : 'Светло-зелёные даты — доступны для самовывоза. Серые — недоступны.'}
           </p>
           <div className="datepicker-wrapper">
             <DatePicker
@@ -252,11 +311,14 @@ export default function CartPage() {
         </div>
 
         {/* Time slot picker */}
-        {deliveryType === 'delivery' && (
-          <div>
-            <h3 className="mb-2 font-medium text-slate-700">Время доставки</h3>
+        <div>
+            <h3 className="mb-2 font-medium text-slate-700">
+              {deliveryType === 'delivery' ? 'Время доставки' : 'Время самовывоза'}
+            </h3>
             {!selectedDate ? (
-              <p className="text-sm text-slate-400">Сначала выберите дату доставки выше.</p>
+              <p className="text-sm text-slate-400">
+                {deliveryType === 'delivery' ? 'Сначала выберите дату доставки выше.' : 'Сначала выберите дату самовывоза выше.'}
+              </p>
             ) : slotsForDate.length === 0 ? (
               <p className="text-sm text-slate-400">Для этой даты слоты не настроены — уточните время в комментарии.</p>
             ) : (
@@ -283,8 +345,44 @@ export default function CartPage() {
                 })}
               </div>
             )}
+        </div>
+      </section>
+
+      {/* Payment method */}
+      <section className="card space-y-4">
+        <h2 className="text-xl font-semibold">Оплата</h2>
+        <div>
+          <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Способ оплаты</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ['cash',     '💵 Наличными'],
+              ['card',     '💳 Банковской картой'],
+              ['transfer', '🏦 Банковским переводом'],
+              ['crypto',   '₿ Криптовалютой'],
+            ].map(([v, l]) => (
+              <label key={v} className={`flex items-center gap-2 cursor-pointer rounded-xl border p-3 transition ${paymentMethod === v ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                <input type="radio" name="paymentMethod" value={v} checked={paymentMethod === v}
+                  onChange={() => setPaymentMethod(v)} className="accent-teal-600" />
+                <span className="text-sm font-medium">{l}</span>
+              </label>
+            ))}
           </div>
-        )}
+        </div>
+        <div>
+          <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Залог</p>
+          <div className="grid sm:grid-cols-2 gap-2">
+            {[
+              ['same', '↩ Тем же способом (возврат тем же способом)'],
+              ['cash', '💵 Залог наличными'],
+            ].map(([v, l]) => (
+              <label key={v} className={`flex items-center gap-2 cursor-pointer rounded-xl border p-3 transition ${depositMethod === v ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                <input type="radio" name="depositMethod" value={v} checked={depositMethod === v}
+                  onChange={() => setDepositMethod(v)} className="accent-teal-600" />
+                <span className="text-sm">{l}</span>
+              </label>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Contact form */}
@@ -302,18 +400,24 @@ export default function CartPage() {
           {submitError && <p className="text-sm text-red-600">{submitError}</p>}
           <div className="flex gap-3">
             <button type="button" className="btn-outline flex-1" onClick={() => navigate('/')}>Отмена</button>
-            <button type="submit" className="btn-primary flex-1" disabled={loading || unavailableIds.length > 0}>
-              {loading ? 'Проверка...' : 'Оформить заказ'}
-            </button>
+            {paymentMethod === 'cash' ? (
+              <button type="submit" className="btn-primary flex-1" disabled={loading || unavailableIds.length > 0}>
+                {loading ? 'Проверка...' : `Оформить заказ — ${totalWithFee} Kč`}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="btn-primary flex-1"
+                disabled={loading || unavailableIds.length > 0}
+                onClick={() => {
+                  if (formRef.current?.checkValidity()) setPaymentStub(true)
+                  else formRef.current?.reportValidity()
+                }}
+              >
+                {loading ? 'Проверка...' : `Перейти к оплате — ${totalWithFee} Kč`}
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            className="w-full rounded-xl border-2 border-dashed border-slate-300 py-3 text-sm text-slate-500 hover:border-teal-400 hover:text-teal-700 transition"
-            disabled={loading || unavailableIds.length > 0}
-            onClick={() => setPaymentStub(true)}
-          >
-            💳 Оплатить онлайн — {grandTotal} Kč <span className="text-xs opacity-60">(тестовый режим)</span>
-          </button>
         </form>
       </section>
 
@@ -350,9 +454,18 @@ export default function CartPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl">
             <div className="text-center">
-              <p className="text-4xl mb-2">💳</p>
-              <h2 className="text-xl font-bold text-slate-800">Онлайн-оплата</h2>
-              <p className="mt-2 text-slate-600 font-semibold text-2xl">{grandTotal} Kč</p>
+              <p className="text-4xl mb-2">
+                {paymentMethod === 'card' ? '💳' : paymentMethod === 'transfer' ? '🏦' : '₿'}
+              </p>
+              <h2 className="text-xl font-bold text-slate-800">
+                {paymentMethod === 'card' && 'Оплата картой'}
+                {paymentMethod === 'transfer' && 'Банковский перевод'}
+                {paymentMethod === 'crypto' && 'Оплата криптовалютой'}
+              </h2>
+              <p className="mt-2 text-slate-600 font-semibold text-2xl">{totalWithFee} Kč</p>
+              {deliveryFee > 0 && (
+                <p className="text-xs text-slate-400">аренда {grandTotal} + доставка {deliveryFee} Kč</p>
+              )}
               <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
                 ⚠ Тестовый режим — реальная оплата не производится
               </div>
@@ -370,7 +483,7 @@ export default function CartPage() {
                 className="btn-primary w-full"
                 onClick={() => { setPaymentStub(false); formRef.current?.requestSubmit() }}
               >
-                Оплатить {grandTotal} Kč (тест)
+                Оплатить {totalWithFee} Kč (тест)
               </button>
               <button className="btn-outline w-full" onClick={() => setPaymentStub(false)}>
                 Отмена

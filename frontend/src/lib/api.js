@@ -316,12 +316,28 @@ export async function getOrders(token) {
   return request('/api/orders', { headers: { Authorization: `Bearer ${token}` } })
 }
 
-export async function updateOrderStatus(id, status, token) {
+export async function updateOrderStatus(id, status, token, cancellationReason = '') {
   if (USE_MOCK) return { id, status }
   return request(`/api/admin/orders/${id}/status`, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, cancellation_reason: cancellationReason }),
+  })
+}
+
+export async function markOrderPaid(id, token) {
+  if (USE_MOCK) return { id }
+  return request(`/api/admin/orders/${id}/payment`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
+export async function markOrderDepositReturned(id, token) {
+  if (USE_MOCK) return { id }
+  return request(`/api/admin/orders/${id}/deposit`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}` },
   })
 }
 

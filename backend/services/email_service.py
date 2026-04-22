@@ -44,8 +44,11 @@ def send_contact_email(payload: ContactRequest) -> None:
 
 
 def send_order_email(order: Order) -> None:
-    delivery_text = "Доставка" if order.delivery_type == "delivery" else "Самовывоз"
+    delivery_text = "Доставка по адресу" if order.delivery_type == "delivery" else "Самовывоз (Прага 7)"
+    return_text = "Забираем сами" if order.return_type == "pickup" else "Самоотвоз (Прага 7)"
     dates_text = ", ".join(order.dates) if order.dates else "-"
+    payment_labels = {"cash": "Наличными", "card": "Банковской картой", "transfer": "Банковским переводом", "crypto": "Криптовалютой"}
+    deposit_labels = {"same": "Тем же способом", "cash": "Наличными"}
 
     items_lines = []
     for item in order.items:
@@ -61,14 +64,22 @@ def send_order_email(order: Order) -> None:
         "Клиент: " + order.name,
         "Email: " + order.email,
         "Телефон: " + order.phone,
-        "Доставка: " + delivery_text,
+        "Получение: " + delivery_text,
+        "Возврат: " + return_text,
         "Даты: " + dates_text,
+        "Оплата: " + payment_labels.get(order.payment_method, order.payment_method),
+        "Залог: " + deposit_labels.get(order.deposit_method, order.deposit_method),
         "",
         "Товары:",
     ] + items_lines + [
         "",
-        "Итого: " + str(order.total_price) + " Kc",
+        "Аренда: " + str(order.total_price - order.delivery_fee) + " Kc",
     ]
+    if order.delivery_fee:
+        lines.append("Доставка/отвоз: " + str(order.delivery_fee) + " Kc")
+        lines.append("Итого: " + str(order.total_price) + " Kc")
+    else:
+        lines.append("Итого: " + str(order.total_price) + " Kc")
     if order.comment:
         lines.append("Комментарий: " + order.comment)
 
@@ -88,5 +99,23 @@ def send_restock_email(email: str, product_name: str) -> None:
         f"",
         f"С уважением,",
         f"Команда Rent Prague",
+    ])
+    _smtp_send(subject, body)
+
+
+def send_cancellation_email(order: "Order", reason: str) -> None:
+    items_text = ", ".join(item.product_name for item in order.items)
+    subject = f"[Rent Prague] Заказ #{order.id} отменён"
+    body = "\n".join([
+        f"Здравствуйте, {order.name}!",
+        "",
+        f"К сожалению, ваш заказ #{order.id} ({items_text}) был отменён.",
+        "",
+        f"Причина отмены: {reason}",
+        "",
+        "Если у вас есть вопросы, пожалуйста, свяжитесь с нами.",
+        "",
+        "С уважением,",
+        "Команда Rent Prague",
     ])
     _smtp_send(subject, body)

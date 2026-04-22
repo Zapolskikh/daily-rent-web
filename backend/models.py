@@ -69,6 +69,10 @@ class OrderCreate(BaseModel):
     phone: str = Field(min_length=6, max_length=30)
     items: list[OrderItem] = Field(min_length=1)
     delivery_type: Literal["delivery", "pickup"]
+    return_type: Literal["pickup", "self"] = "self"
+    payment_method: Literal["cash", "card", "transfer", "crypto"] = "cash"
+    deposit_method: Literal["same", "cash"] = "same"
+    delivery_fee: float = Field(default=0, ge=0)
     dates: list[str] = Field(default_factory=list)
     delivery_slot: str | None = Field(default=None, max_length=20)  # e.g. "13:00-14:00"
     comment: str = Field(default="", max_length=1000)
@@ -78,6 +82,9 @@ class Order(OrderCreate):
     id: str
     total_price: float
     status: Literal["pending", "confirmed", "cancelled", "returned"] = "pending"
+    payment_status: Literal["pending", "paid"] = "pending"
+    deposit_status: Literal["pending", "returned"] = "pending"
+    cancellation_reason: str = ""
     created_at: datetime
 
 
@@ -100,6 +107,7 @@ class AvailableDatesPayload(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: Literal["pending", "confirmed", "cancelled", "returned"]
+    cancellation_reason: str = Field(default="", max_length=1000)
 
 
 class NotifyRequest(BaseModel):

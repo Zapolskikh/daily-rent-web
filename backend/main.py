@@ -35,7 +35,7 @@ from models import (
     ProductsResponse,
     utc_now,
 )
-from services.email_service import EmailConfigError, send_contact_email, send_order_email, send_restock_email
+from services.email_service import EmailConfigError, send_cancellation_email, send_contact_email, send_order_email, send_restock_email
 from services.object_storage import ObjectStorageConfigError, save_product_image
 from services.storage import (
     delete_product_by_id,
@@ -255,12 +255,15 @@ def create_order(payload: OrderCreate) -> Order:
     for item in payload.items:
         options_total = sum(o.price for o in item.selected_options)
         total += (item.price_per_day + options_total) * days
+    total += payload.delivery_fee
 
     order = Order(
         id=secrets.token_urlsafe(8),
         **payload.model_dump(),
         total_price=round(total, 2),
-        status="pending",
+        status="confirmed",
+        payment_status="paid" if payload.payment_method != "cash" else "pending",
+        deposit_status="pending",
         created_at=utc_now(),
     )
     orders = read_orders()
@@ -287,13 +290,22 @@ def update_order_status(
         if order.id != order_id:
             continue
         prev_status = order.status
-        updated = order.model_copy(update={"status": payload.status})
+        updated = order.model_copy(update={
+            "status": payload.status,
+            "cancellation_reason": payload.cancellation_reason,
+        })
         orders[index] = updated
         write_orders(orders)
         # Release reservation when order is cancelled or returned
         if payload.status in ("cancelled", "returned") and prev_status in ("pending", "confirmed"):
             product_ids = [item.product_id for item in order.items]
             increment_reservations(product_ids, order.dates, delta=-1)
+        # Send cancellation email with reason if provided
+        if payload.status == "cancelled" and payload.cancellation_reason:
+            try:
+                send_cancellation_email(order, payload.cancellation_reason)
+            except Exception:
+                pass
         # When returned: increment product stock and notify waitlisted customers
         if payload.status == "returned" and prev_status in ("pending", "confirmed", "cancelled"):
             products = read_products()
@@ -310,6 +322,38 @@ def update_order_status(
                             pass
                     if notifications:
                         delete_notifications_for_product(item.product_id)
+        return updated
+    raise HTTPException(status_code=404, detail="Order not found")
+
+
+@app.patch("/api/admin/orders/{order_id}/payment", response_model=Order)
+def mark_order_paid(
+    order_id: str,
+    _: str = Depends(verify_admin),
+) -> Order:
+    orders = read_orders()
+    for index, order in enumerate(orders):
+        if order.id != order_id:
+            continue
+        updated = order.model_copy(update={"payment_status": "paid"})
+        orders[index] = updated
+        write_orders(orders)
+        return updated
+    raise HTTPException(status_code=404, detail="Order not found")
+
+
+@app.patch("/api/admin/orders/{order_id}/deposit", response_model=Order)
+def mark_deposit_returned(
+    order_id: str,
+    _: str = Depends(verify_admin),
+) -> Order:
+    orders = read_orders()
+    for index, order in enumerate(orders):
+        if order.id != order_id:
+            continue
+        updated = order.model_copy(update={"deposit_status": "returned"})
+        orders[index] = updated
+        write_orders(orders)
         return updated
     raise HTTPException(status_code=404, detail="Order not found")
 

@@ -14,6 +14,8 @@ import {
   getNotes,
   getOrders,
   getProducts,
+  markOrderDepositReturned,
+  markOrderPaid,
   setAvailableDates,
   updateOrderStatus,
   updateProduct,
@@ -65,6 +67,8 @@ export default function AdminPage() {
   const [error, setError] = useState('')
   const [debugRaw, setDebugRaw] = useState(null)
   const [apiLog, setApiLog] = useState(null)
+  const [cancelModal, setCancelModal] = useState(null) // { orderId } | null
+  const [cancelReason, setCancelReason] = useState('')
 
   function logApi(method, path, body, responseFn) {
     const ts = new Date().toLocaleTimeString()
@@ -319,6 +323,8 @@ export default function AdminPage() {
 
   const STATUS_LABELS = { pending: 'В ожидании', confirmed: 'Подтверждён', cancelled: 'Отменён', returned: 'Возвращён на склад' }
   const STATUS_COLORS = { pending: 'text-amber-700 bg-amber-50', confirmed: 'text-green-700 bg-green-50', cancelled: 'text-red-700 bg-red-50', returned: 'text-slate-700 bg-slate-100' }
+  const PAYMENT_METHOD_LABELS = { cash: 'Наличными', card: 'Картой', transfer: 'Переводом', crypto: 'Крипто' }
+  const DEPOSIT_METHOD_LABELS = { same: 'тем же способом', cash: 'наличными' }
 
   if (!token) {
     return (
@@ -459,13 +465,22 @@ export default function AdminPage() {
             <p className="text-slate-500">Заказов пока нет</p>
           ) : (
             <div className="space-y-4">
-              {orders.map((order) => (
-                <article key={order.id} className="rounded-xl border border-slate-200 p-4 space-y-2">
+              {orders.map((order) => {
+                const isPaid = order.payment_status === 'paid'
+                const depositReturned = order.deposit_status === 'returned'
+                const depositIsCash = order.deposit_method === 'cash'
+                const effectiveDepositMethod = order.deposit_method === 'same' ? order.payment_method : 'cash'
+                return (
+                <article key={order.id} className="rounded-xl border border-slate-200 p-4 space-y-3">
+                  {/* Header row */}
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-semibold">{order.name} · {order.phone}</p>
                       <p className="text-sm text-slate-500">{order.email}</p>
-                      <p className="text-sm">Даты: {order.dates?.join(', ') || '-'} · {order.delivery_type === 'delivery' ? 'Доставка' : 'Самовывоз'}</p>
+                      <p className="text-sm">
+                        Даты: {order.dates?.join(', ') || '-'} · {order.delivery_type === 'delivery' ? '🚚 Доставка' : '🏠 Самовывоз'}
+                        {order.return_type === 'pickup' ? ' · 🔄 Отвезём' : ' · 🔄 Самоотвоз'}
+                      </p>
                       <ul className="mt-1 text-sm text-slate-700">
                         {order.items?.map((item, i) => (
                           <li key={i}>• {item.product_name}{item.selected_options?.length > 0 ? ' + [' + item.selected_options.map((o) => o.name).join(', ') + ']' : ''}</li>
@@ -473,39 +488,70 @@ export default function AdminPage() {
                       </ul>
                       <p className="font-semibold text-brand mt-1">{order.total_price} Kč</p>
                     </div>
-                    <div className="flex flex-col gap-2 items-end">
+                    <div className="flex flex-col gap-1.5 items-end shrink-0">
                       <span className={'rounded-lg px-2 py-1 text-xs font-medium ' + (STATUS_COLORS[order.status] || '')}>
                         {STATUS_LABELS[order.status]}
                       </span>
-                      {order.status === 'pending' && (
-                        <div className="flex gap-1">
-                          <button className="btn text-xs bg-green-100 text-green-800 hover:bg-green-200"
-                            onClick={async () => { await updateOrderStatus(order.id, 'confirmed', token); refreshOrders() }}>
-                            Подтвердить
-                          </button>
-                          <button className="btn text-xs bg-red-50 text-red-700 hover:bg-red-100"
-                            onClick={async () => { await updateOrderStatus(order.id, 'cancelled', token); refreshOrders() }}>
-                            Отменить
-                          </button>
-                        </div>
-                      )}
-                      {order.status === 'confirmed' && (
-                        <div className="flex gap-1">
-                          <button className="btn text-xs bg-slate-100 text-slate-700 hover:bg-slate-200"
-                            onClick={async () => { await updateOrderStatus(order.id, 'returned', token); refreshOrders() }}>
-                            📦 Вернули на склад
-                          </button>
-                          <button className="btn text-xs bg-red-50 text-red-700 hover:bg-red-100"
-                            onClick={async () => { await updateOrderStatus(order.id, 'cancelled', token); refreshOrders() }}>
-                            Отменить
-                          </button>
-                        </div>
-                      )}
+                      {/* Payment badge */}
+                      <span className={`rounded-lg px-2 py-1 text-xs font-medium ${isPaid ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700'}`}>
+                        💰 {PAYMENT_METHOD_LABELS[order.payment_method] || order.payment_method} · {isPaid ? 'Оплачено ✓' : 'Не оплачено'}
+                      </span>
+                      {/* Deposit badge */}
+                      <span className={`rounded-lg px-2 py-1 text-xs font-medium ${depositReturned ? 'bg-slate-100 text-slate-500' : 'bg-blue-50 text-blue-700'}`}>
+                        🔒 Залог ({DEPOSIT_METHOD_LABELS[order.deposit_method]}) · {depositReturned ? 'Возвращён ✓' : 'Удерживается'}
+                      </span>
                     </div>
                   </div>
+
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
+                    {/* Mark cash payment */}
+                    {!isPaid && order.payment_method === 'cash' && order.status !== 'cancelled' && (
+                      <button className="btn text-xs bg-green-100 text-green-800 hover:bg-green-200"
+                        onClick={async () => { await markOrderPaid(order.id, token); refreshOrders() }}>
+                        💵 Отметить оплату наличными
+                      </button>
+                    )}
+                    {/* Deposit return */}
+                    {!depositReturned && order.status === 'returned' && (
+                      effectiveDepositMethod === 'cash' ? (
+                        <button className="btn text-xs bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          onClick={async () => { await markOrderDepositReturned(order.id, token); refreshOrders() }}>
+                          💵 Залог возвращён наличными
+                        </button>
+                      ) : (
+                        <button className="btn text-xs bg-blue-50 text-blue-700 hover:bg-blue-100"
+                          onClick={async () => { await markOrderDepositReturned(order.id, token); refreshOrders() }}>
+                          ✅ Товар проверен — вернуть залог
+                        </button>
+                      )
+                    )}
+                    {/* Return to stock */}
+                    {order.status === 'confirmed' && (
+                      <button className="btn text-xs bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        onClick={async () => { await updateOrderStatus(order.id, 'returned', token); refreshOrders() }}>
+                        📦 Вернули на склад
+                      </button>
+                    )}
+                    {/* Cancel */}
+                    {order.status !== 'cancelled' && order.status !== 'returned' && (
+                      <button className="btn text-xs bg-red-50 text-red-700 hover:bg-red-100"
+                        onClick={() => { setCancelModal({ orderId: order.id }); setCancelReason('') }}>
+                        Отменить
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Cancellation reason if cancelled */}
+                  {order.status === 'cancelled' && order.cancellation_reason && (
+                    <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                      Причина отмены: {order.cancellation_reason}
+                    </p>
+                  )}
                   {order.comment && <p className="text-sm text-slate-500">Комментарий: {order.comment}</p>}
                 </article>
-              ))}
+                )
+              })}
             </div>
           )}
         </section>
@@ -947,6 +993,37 @@ export default function AdminPage() {
 
       {/* ── SQL Terminal ── */}
       <SqlTerminal token={token} externalLog={apiLog} />
+
+      {/* ── Cancel modal ── */}
+      {cancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl">
+            <h2 className="text-lg font-bold text-slate-800">Причина отмены</h2>
+            <p className="text-sm text-slate-500">Укажите причину — она будет автоматически отправлена клиенту на email.</p>
+            <textarea
+              className="input min-h-24 w-full"
+              placeholder="Например: товар повреждён, дата недоступна..."
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <button className="btn-outline flex-1" onClick={() => setCancelModal(null)}>Отмена</button>
+              <button
+                className="btn flex-1 bg-red-600 text-white hover:bg-red-700"
+                disabled={!cancelReason.trim()}
+                onClick={async () => {
+                  await updateOrderStatus(cancelModal.orderId, 'cancelled', token, cancelReason.trim())
+                  setCancelModal(null)
+                  setCancelReason('')
+                  refreshOrders()
+                }}
+              >
+                Подтвердить отмену
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
