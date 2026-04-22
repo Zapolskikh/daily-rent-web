@@ -118,7 +118,9 @@ export default function AdminPage() {
   async function refreshDates() {
     try {
       const payload = await getAvailableDates()
-      const dates = payload.dates || []
+      const raw = payload.dates || []
+      // Drop legacy global slots (old format: 'HH:MM-HH:MM' without date prefix)
+      const dates = raw.filter(d => !d.includes(':') || /^\d{4}-\d{2}-\d{2}:/.test(d))
       setSavedDates(dates)
       setSelectedDates(dates)
       setDatesMessage('')
@@ -244,7 +246,7 @@ export default function AdminPage() {
 
   function focusDateForSlots(iso) {
     // iso = 'YYYY-MM-DD'
-    setFocusedDate((prev) => prev === iso ? prev : iso)
+    setFocusedDate(iso)
   }
 
   function toggleSlot(slotValue) {
@@ -255,6 +257,20 @@ export default function AdminPage() {
   }
 
   async function saveDates() {
+    // Validate: every selected date must have at least one slot
+    const selectedDateOnly = selectedDates.filter(d => !d.includes(':'))
+    const datesWithoutSlots = selectedDateOnly.filter(d =>
+      !selectedDates.some(s => s.startsWith(d + ':'))
+    )
+    if (datesWithoutSlots.length > 0) {
+      const labels = datesWithoutSlots
+        .sort()
+        .slice(0, 5)
+        .map(d => new Date(d + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }))
+        .join(', ')
+      setDatesMessage(`⚠️ Не заданы временные слоты для: ${labels}${datesWithoutSlots.length > 5 ? ' и ещё ' + (datesWithoutSlots.length - 5) : ''}. Нажмите на дату и выберите хотя бы один слот.`)
+      return
+    }
     setDatesSaving(true)
     setDatesMessage('')
     try {
@@ -636,25 +652,57 @@ export default function AdminPage() {
               )}
 
               {/* Summary of all dates with slots */}
-              {selectedDates.filter(d => d.includes(':')).length > 0 && (
+              {selectedDates.some(d => /^\d{4}-\d{2}-\d{2}:/.test(d)) && (
                 <div className="text-xs space-y-1">
                   <p className="font-medium text-slate-600">Все настроенные слоты:</p>
                   {(() => {
                     const byDate = {}
-                    selectedDates.filter(d => d.includes(':')).forEach(entry => {
-                      const [date, slot] = entry.split(/:(.+)/)
-                      if (!byDate[date]) byDate[date] = []
-                      byDate[date].push(slot)
-                    })
+                    selectedDates
+                      .filter(d => /^\d{4}-\d{2}-\d{2}:/.test(d))
+                      .forEach(entry => {
+                        const dateKey = entry.slice(0, 10)       // 'YYYY-MM-DD'
+                        const slotVal = entry.slice(11)          // 'HH:MM-HH:MM'
+                        if (!byDate[dateKey]) byDate[dateKey] = []
+                        byDate[dateKey].push(slotVal)
+                      })
                     return Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b)).map(([date, slots]) => (
                       <p key={date} className="text-slate-600">
-                        <span className="font-medium">{new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}:</span>{' '}
-                        {slots.map(s => { const h = parseInt(s); return `${h}:00–${h+1}:00` }).join(', ')}
+                        <span className="font-medium">
+                          {new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}:
+                        </span>{' '}
+                        {slots.map(s => {
+                          const [hh] = s.split(':')
+                          const h = parseInt(hh, 10)
+                          return `${h}:00–${h + 1}:00`
+                        }).join(', ')}
                       </p>
                     ))
                   })()}
                 </div>
               )}
+
+              {/* Warning: dates without slots */}
+              {(() => {
+                const noSlot = selectedDates
+                  .filter(d => !d.includes(':'))
+                  .filter(d => !selectedDates.some(s => s.startsWith(d + ':')))
+                if (!noSlot.length) return null
+                return (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm space-y-1">
+                    <p className="font-semibold text-amber-800">⚠️ Даты без временных слотов:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {noSlot.sort().map(d => (
+                        <button key={d}
+                          onClick={() => focusDateForSlots(d)}
+                          className="rounded-lg bg-amber-100 hover:bg-amber-200 border border-amber-400 text-amber-900 px-2 py-0.5 font-medium">
+                          {new Date(d + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-amber-700 text-xs">Нажмите на дату, чтобы перейти к редактированию её слотов. Сохранение заблокировано.</p>
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Save */}
