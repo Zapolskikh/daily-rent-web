@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import {
+  addNote,
   adminLogin,
   createProduct,
   debugGetProductsRaw,
   debugResetProducts,
+  deleteNote,
   deleteProduct,
   getAvailableDates,
   getCategories,
+  getNotes,
   getOrders,
   getProducts,
   setAvailableDates,
@@ -83,6 +86,11 @@ export default function AdminPage() {
   const [datesMessage, setDatesMessage] = useState('')
   const [datesSaving, setDatesSaving] = useState(false)
 
+  // Notes tab
+  const [notes, setNotes] = useState([])
+  const [noteText, setNoteText] = useState('')
+  const [noteSaving, setNoteSaving] = useState(false)
+
   async function refreshProducts() {
     const payload = await getProducts('')
     setProducts(payload.products || [])
@@ -115,6 +123,13 @@ export default function AdminPage() {
     } catch { }
   }
 
+  async function refreshNotes() {
+    try {
+      const payload = await getNotes(token)
+      setNotes(payload.notes || [])
+    } catch { }
+  }
+
   async function refreshDates() {
     try {
       const payload = await getAvailableDates()
@@ -141,6 +156,7 @@ export default function AdminPage() {
     if (token) {
       refreshOrders()
       refreshDates()
+      refreshNotes()
     }
   }, [token])
 
@@ -318,7 +334,7 @@ export default function AdminPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
-          {[['products', 'Товары'], ['orders', 'Заказы'], ['dates', 'Даты доставки']].map(([tab, label]) => (
+          {[['products', 'Товары'], ['orders', 'Заказы'], ['dates', 'Даты доставки'], ['notes', '📝 Заметки']].map(([tab, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={activeTab === tab ? 'btn-primary' : 'btn-outline'}>
               {label}
@@ -743,6 +759,89 @@ export default function AdminPage() {
             <pre className="overflow-auto p-4 text-xs text-slate-700 whitespace-pre-wrap">{JSON.stringify(debugRaw, null, 2)}</pre>
           </div>
         </div>
+      )}
+
+      {/* ── Notes tab ── */}
+      {activeTab === 'notes' && (
+        <section className="card space-y-5">
+          <div>
+            <h2 className="text-xl font-semibold">Заметки</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Сохраняются в базе данных. Видны всем администраторам.</p>
+          </div>
+
+          {/* Input */}
+          <div className="space-y-2">
+            <textarea
+              className="input min-h-28 resize-y"
+              placeholder="Введите заметку... (Ctrl+Enter для сохранения)"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault()
+                  if (!noteText.trim() || noteSaving) return
+                  setNoteSaving(true)
+                  try {
+                    const note = await addNote(noteText.trim(), token)
+                    setNotes((prev) => [note, ...prev])
+                    setNoteText('')
+                  } catch { }
+                  finally { setNoteSaving(false) }
+                }
+              }}
+            />
+            <div className="flex items-center gap-3">
+              <button
+                className="btn-primary"
+                disabled={!noteText.trim() || noteSaving}
+                onClick={async () => {
+                  if (!noteText.trim() || noteSaving) return
+                  setNoteSaving(true)
+                  try {
+                    const note = await addNote(noteText.trim(), token)
+                    setNotes((prev) => [note, ...prev])
+                    setNoteText('')
+                  } catch { }
+                  finally { setNoteSaving(false) }
+                }}>
+                {noteSaving ? 'Сохранение...' : '+ Добавить заметку'}
+              </button>
+              <span className="text-xs text-slate-400">или Ctrl+Enter</span>
+            </div>
+          </div>
+
+          {/* Notes list */}
+          {notes.length === 0 ? (
+            <p className="text-slate-400 text-sm">Заметок пока нет</p>
+          ) : (
+            <div className="space-y-3">
+              {notes.map((note) => (
+                <article key={note.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-800 whitespace-pre-wrap break-words">{note.text}</p>
+                    <p className="mt-2 text-xs text-slate-400">
+                      {new Date(note.created_at).toLocaleString('ru-RU', {
+                        day: 'numeric', month: 'long', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                  <button
+                    className="shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-slate-400 hover:bg-red-100 hover:text-red-600 transition"
+                    title="Удалить заметку"
+                    onClick={async () => {
+                      try {
+                        await deleteNote(note.id, token)
+                        setNotes((prev) => prev.filter((n) => n.id !== note.id))
+                      } catch { }
+                    }}>
+                    ✕
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
       {/* ── SQL Terminal ── */}

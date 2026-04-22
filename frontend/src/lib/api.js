@@ -336,6 +336,27 @@ export async function setAvailableDates(dates, token) {
   })
 }
 
+// ── Admin: notes ──────────────────────────────────────────────────────────────
+
+export async function getNotes(token) {
+  return request('/api/admin/notes', { headers: { Authorization: `Bearer ${token}` } })
+}
+
+export async function addNote(text, token) {
+  return request('/api/admin/notes', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ text }),
+  })
+}
+
+export async function deleteNote(noteId, token) {
+  return request(`/api/admin/notes/${noteId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}
+
 // ── Admin: debug ──────────────────────────────────────────────────────────────
 
 export async function debugGetProductsRaw(token) {

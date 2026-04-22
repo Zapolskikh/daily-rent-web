@@ -43,12 +43,14 @@ from services.storage import (
     increment_reservations,
     init_db,
     read_available_dates,
+    read_notes,
     read_orders,
     read_products,
     reserve_if_available,
     seed_legacy_data_if_empty,
     upsert_product,
     write_available_dates,
+    write_notes,
     write_orders,
 )
 from services.telegram_service import (
@@ -307,6 +309,39 @@ def notify_availability(payload: NotifyRequest) -> MessageResponse:
     except (TelegramConfigError, Exception):
         pass
     return MessageResponse(message="Запрос принят")
+
+
+# ─── Admin: notes ─────────────────────────────────────────────────────────────
+
+@app.get("/api/admin/notes")
+def get_notes(_: str = Depends(verify_admin)) -> dict:
+    return {"notes": read_notes()}
+
+
+@app.post("/api/admin/notes")
+def add_note(payload: dict, _: str = Depends(verify_admin)) -> dict:
+    text = (payload.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="Note text is required")
+    notes = read_notes()
+    note = {
+        "id": secrets.token_urlsafe(8),
+        "text": text,
+        "created_at": utc_now().isoformat(),
+    }
+    notes.insert(0, note)  # newest first
+    write_notes(notes)
+    return note
+
+
+@app.delete("/api/admin/notes/{note_id}")
+def delete_note(note_id: str, _: str = Depends(verify_admin)) -> dict:
+    notes = read_notes()
+    new_notes = [n for n in notes if n["id"] != note_id]
+    if len(new_notes) == len(notes):
+        raise HTTPException(status_code=404, detail="Note not found")
+    write_notes(new_notes)
+    return {"ok": True}
 
 
 # ─── Admin: login ─────────────────────────────────────────────────────────────

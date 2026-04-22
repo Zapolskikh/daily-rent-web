@@ -289,6 +289,28 @@ def write_available_dates(dates: list[str]) -> None:
         session.commit()
 
 
+# ── Notes ─────────────────────────────────────────────────────────────────────
+
+def read_notes() -> list[dict]:
+    """Returns list of note dicts: {id, text, created_at}"""
+    with _session() as session:
+        row = session.get(MetaRecord, "admin_notes")
+    if not row:
+        return []
+    return row.value.get("notes", [])
+
+
+def write_notes(notes: list[dict]) -> None:
+    with _session() as session:
+        row = session.get(MetaRecord, "admin_notes")
+        payload = {"notes": notes}
+        if not row:
+            session.add(MetaRecord(key="admin_notes", value=payload))
+        else:
+            row.value = payload
+        session.commit()
+
+
 # ── Reservations ──────────────────────────────────────────────────────────────
 
 def get_reserved_counts(product_ids: list[str], dates: list[str]) -> dict[tuple[str, str], int]:
