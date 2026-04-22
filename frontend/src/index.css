@@ -34,21 +34,24 @@
 .react-datepicker__header {
   @apply bg-slate-50 border-b border-slate-200 rounded-t-2xl;
 }
+/* Available (not disabled) days — light green */
+.react-datepicker__day:not(.react-datepicker__day--disabled) {
+  @apply bg-teal-50 text-teal-800 font-medium rounded-lg;
+}
+.react-datepicker__day:not(.react-datepicker__day--disabled):hover {
+  @apply bg-teal-200;
+}
+/* Selected day — dark green */
 .react-datepicker__day--selected,
-.react-datepicker__day--keyboard-selected,
-.react-datepicker__day--in-range {
-  @apply bg-teal-600 text-white rounded-lg;
+.react-datepicker__day--keyboard-selected {
+  @apply bg-teal-600 text-white rounded-lg font-bold;
 }
-.react-datepicker__day--in-selecting-range {
-  @apply bg-teal-200 text-teal-900 rounded-lg;
+/* Disabled days — grey */
+.react-datepicker__day--disabled {
+  @apply text-slate-300 bg-transparent cursor-not-allowed;
 }
-.react-datepicker__day--range-start,
-.react-datepicker__day--range-end {
-  @apply bg-teal-700 text-white rounded-lg font-bold;
-}
-/* highlighted = available delivery dates */
-.react-datepicker__day--highlighted {
-  @apply border border-teal-400 text-teal-700 font-semibold;
+.react-datepicker__day--disabled:hover {
+  @apply bg-transparent;
 }
 .react-datepicker__day:hover {
   @apply bg-teal-100 rounded-lg;

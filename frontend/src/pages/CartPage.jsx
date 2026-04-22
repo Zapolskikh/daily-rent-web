@@ -13,15 +13,14 @@ export default function CartPage() {
   const navigate = useNavigate()
 
   const [deliveryType, setDeliveryType] = useState('delivery')
-  const [startDate, setStartDate] = useState(null)
-  const [endDate, setEndDate] = useState(null)
-  const [availableDates, setAvailableDates] = useState([])
-  const [availableSlots, setAvailableSlots] = useState([])
+  const [selectedDate, setSelectedDate] = useState(null)
+  const [availableDates, setAvailableDates] = useState([])   // ['YYYY-MM-DD', ...]
+  const [availableSlots, setAvailableSlots] = useState([])   // ['YYYY-MM-DD:HH:MM-HH:MM', ...]
   const [selectedSlot, setSelectedSlot] = useState('')
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', comment: '' })
   const [unavailableIds, setUnavailableIds] = useState([])
-  const [unavailableModal, setUnavailableModal] = useState(null) // { message, productName }
+  const [unavailableModal, setUnavailableModal] = useState(null)
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -30,12 +29,14 @@ export default function CartPage() {
     getAvailableDates()
       .then((data) => {
         const raw = data.dates || []
-        // dates: entries without ':', slots: entries with 'YYYY-MM-DD:HH:MM-HH:MM'
         setAvailableDates(raw.filter((d) => !d.includes(':')))
         setAvailableSlots(raw.filter((d) => /^\d{4}-\d{2}-\d{2}:/.test(d)))
       })
       .catch(() => {})
   }, [])
+
+  // Reset slot when date changes
+  useEffect(() => { setSelectedSlot('') }, [selectedDate])
 
   if (items.length === 0 && !success) {
     return (
@@ -57,51 +58,31 @@ export default function CartPage() {
     )
   }
 
-  // Reset slot when start date changes
-  useEffect(() => { setSelectedSlot('') }, [startDate])
+  const selectedIso = selectedDate ? selectedDate.toISOString().slice(0, 10) : null
 
-  // compute all dates in the selected range
-  function dateRange(start, end) {
-    if (!start) return []
-    const dates = []
-    const d = new Date(start)
-    const last = end || start
-    while (d <= last) {
-      dates.push(d.toISOString().slice(0, 10))
-      d.setDate(d.getDate() + 1)
-    }
-    return dates
-  }
-  const selectedDates = dateRange(startDate, endDate)
-  const days = Math.max(selectedDates.length, 1)
+  // Slots for selected date (strip date prefix)
+  const slotsForDate = selectedIso
+    ? availableSlots
+        .filter(d => d.startsWith(selectedIso + ':'))
+        .map(d => d.slice(11))
+    : []
+
+  // Dates that have ≥1 slot — these are "available" (light green)
+  const datesWithSlots = new Set(
+    availableDates.filter(d => availableSlots.some(s => s.startsWith(d + ':')))
+  )
+
+  const days = 1
   const itemTotals = items.map((item) => {
     const optTotal = item.selectedOptions.reduce((s, o) => s + o.price, 0)
     return (item.product.price_per_day + optTotal) * days * item.quantity
   })
   const grandTotal = itemTotals.reduce((s, v) => s + v, 0)
 
-  // Slots available for the delivery (start) date
-  const startIso = startDate ? startDate.toISOString().slice(0, 10) : null
-  const slotsForStartDate = startIso
-    ? availableSlots
-        .filter(d => d.startsWith(startIso + ':'))
-        .map(d => d.slice(startIso.length + 1))  // strip 'YYYY-MM-DD:' prefix
-    : []
-
-  // Only highlight dates that have ≥1 slot configured
-  const datesWithSlots = availableDates.filter(d =>
-    availableSlots.some(s => s.startsWith(d + ':'))
-  )
-  const availableDateObjs = datesWithSlots.map((d) => new Date(d + 'T00:00:00'))
-
-  function isDeliveryDate(date) {
+  // Only available dates can be picked; grey out the rest
+  function filterDate(date) {
     const iso = date.toISOString().slice(0, 10)
-    return availableDates.includes(iso)
-  }
-
-  function handleDateChange([start, end]) {
-    setStartDate(start || null)
-    setEndDate(end || null)
+    return datesWithSlots.has(iso)
   }
 
   async function handleCheckAndSubmit(e) {
@@ -109,29 +90,21 @@ export default function CartPage() {
     setSubmitError('')
     setUnavailableIds([])
 
-    if (deliveryType === 'delivery' && !startDate) {
-      setSubmitError('Выберите дату начала аренды')
+    if (deliveryType === 'delivery' && !selectedDate) {
+      setSubmitError('Выберите дату доставки')
       return
     }
-
-    if (deliveryType === 'delivery' && startDate) {
-      const iso = startDate.toISOString().slice(0, 10)
-      const slots = availableSlots.filter(d => d.startsWith(iso + ':'))
-      if (slots.length > 0 && !selectedSlot) {
-        setSubmitError('Выберите временной слот доставки')
-        return
-      }
-      if (slots.length === 0 && !form.comment.trim()) {
-        setSubmitError('Для выбранной даты нет настроенных слотов — укажите удобное время доставки в комментарии')
-        return
-      }
+    if (deliveryType === 'delivery' && slotsForDate.length > 0 && !selectedSlot) {
+      setSubmitError('Выберите временной слот доставки')
+      return
     }
 
     setLoading(true)
     try {
+      const dates = selectedIso ? [selectedIso] : []
       const { unavailable_product_ids } = await checkAvailability({
         items: items.map((item) => ({ product_id: item.product.id })),
-        dates: selectedDates,
+        dates,
       })
       if (unavailable_product_ids.length > 0) {
         setUnavailableIds(unavailable_product_ids)
@@ -150,14 +123,13 @@ export default function CartPage() {
         ...form,
         items: orderItems,
         delivery_type: deliveryType,
-        dates: selectedDates,
+        dates,
         delivery_slot: selectedSlot || null,
       })
 
       clearCart()
       setSuccess(true)
     } catch (err) {
-      // 409 = товар занят (server-side double-check)
       if (err.message && err.message.includes('недоступен')) {
         setUnavailableModal({ message: err.message })
       } else {
@@ -237,78 +209,54 @@ export default function CartPage() {
 
         {/* Date picker */}
         <div>
-          <h3 className="mb-1 font-medium text-slate-700">Выберите период аренды</h3>
+          <h3 className="mb-1 font-medium text-slate-700">Дата доставки</h3>
           <p className="mb-3 text-sm text-slate-500">
-            Нажмите на дату начала, затем на дату окончания аренды.
-            {availableDates.length > 0 && ' Даты доставки подсвечены зелёным.'}
+            Светло-зелёные даты — доступны для доставки. Серые — недоступны.
           </p>
           <div className="datepicker-wrapper">
             <DatePicker
               locale="ru"
               inline
-              selectsRange
-              startDate={startDate}
-              endDate={endDate}
-              onChange={handleDateChange}
-              highlightDates={availableDateObjs}
+              selected={selectedDate}
+              onChange={(date) => setSelectedDate(date)}
+              filterDate={filterDate}
               minDate={new Date()}
             />
           </div>
-          {startDate && (
-            <div className="mt-3 rounded-xl bg-teal-50 border border-teal-200 px-4 py-3 text-sm space-y-0.5">
-              <p className="font-semibold text-teal-800">
-                {days} {days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'}
-              </p>
-              <p className="text-teal-700">
-                Начало: <strong>{startDate.toLocaleDateString('ru-RU')}</strong>
-                {endDate && endDate.getTime() !== startDate.getTime() && (
-                  <> &rarr; Конец: <strong>{endDate.toLocaleDateString('ru-RU')}</strong></>
-                )}
-              </p>
-              {!isDeliveryDate(startDate) && availableDates.length > 0 && (
-                <p className="text-amber-700">⚠ Выбранная дата начала не является датой доставки. Уточните у менеджера.</p>
-              )}
-            </div>
+          {selectedDate && (
+            <p className="mt-2 text-sm font-medium text-teal-700">
+              Выбрано: {selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
           )}
         </div>
 
         {/* Time slot picker */}
-        {deliveryType === 'delivery' && startDate && (
+        {deliveryType === 'delivery' && (
           <div>
-            <h3 className="mb-1 font-medium text-slate-700">
-              Временной слот доставки
-            </h3>
-            <p className="mb-2 text-sm text-slate-500">
-              Дата доставки: <strong>{startDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>
-            </p>
-            {slotsForStartDate.length > 0 ? (
+            <h3 className="mb-2 font-medium text-slate-700">Время доставки</h3>
+            {!selectedDate ? (
+              <p className="text-sm text-slate-400">Сначала выберите дату доставки выше.</p>
+            ) : slotsForDate.length === 0 ? (
+              <p className="text-sm text-slate-400">Для этой даты слоты не настроены — уточните время в комментарии.</p>
+            ) : (
               <div className="flex flex-wrap gap-2">
-                {slotsForStartDate.map((slot) => {
-                  const [hStart] = slot.split('-')
-                  const h = parseInt(hStart)
-                  const label = `${h}:00 – ${h + 1}:00`
+                {slotsForDate.map((slot) => {
+                  const h = parseInt(slot.split(':')[0], 10)
+                  const isSelected = selectedSlot === slot
                   return (
                     <button key={slot} type="button"
-                      onClick={() => setSelectedSlot(slot === selectedSlot ? '' : slot)}
+                      onClick={() => setSelectedSlot(isSelected ? '' : slot)}
                       className={`px-4 py-2 rounded-xl border text-sm font-medium transition
-                        ${selectedSlot === slot
+                        ${isSelected
                           ? 'bg-teal-600 text-white border-teal-600'
-                          : 'border-slate-200 text-slate-700 hover:border-teal-400 hover:text-teal-700'}`}>
-                      {label}
+                          : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100 hover:border-teal-400'}`}>
+                      {h}:00 – {h + 1}:00
                     </button>
                   )
                 })}
               </div>
-            ) : (
-              <p className="text-sm text-slate-400 italic">Для этой даты временные слоты не настроены — уточните время доставки в комментарии.</p>
-            )}
-            {selectedSlot && (
-              <p className="mt-2 text-sm text-teal-700">Слот: <strong>{(() => { const h = parseInt(selectedSlot); return `${h}:00 – ${h+1}:00` })()}</strong></p>
             )}
           </div>
-        )}
-        {deliveryType === 'delivery' && !startDate && (
-          <p className="text-sm text-slate-400 italic">Выберите дату аренды, чтобы увидеть доступные слоты доставки.</p>
         )}
       </section>
 
