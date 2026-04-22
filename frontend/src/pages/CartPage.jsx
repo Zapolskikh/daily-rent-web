@@ -1,6 +1,6 @@
 import DatePicker, { registerLocale } from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { checkAvailability, createOrder, getAvailableDates, getBookedSlots, notifyAvailability } from '../lib/api'
@@ -11,6 +11,7 @@ registerLocale('ru', ru)
 export default function CartPage() {
   const { items, removeFromCart, clearCart } = useCart()
   const navigate = useNavigate()
+  const topRef = useRef(null)
 
   const [deliveryType, setDeliveryType] = useState('delivery')
   const [selectedDate, setSelectedDate] = useState(null)
@@ -21,6 +22,7 @@ export default function CartPage() {
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', comment: '' })
   const [unavailableIds, setUnavailableIds] = useState([])
+  const [notifySuccess, setNotifySuccess] = useState({})    // { productId: true }
   const [unavailableModal, setUnavailableModal] = useState(null)
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -113,6 +115,7 @@ export default function CartPage() {
       if (unavailable_product_ids.length > 0) {
         setUnavailableIds(unavailable_product_ids)
         setLoading(false)
+        topRef.current?.scrollIntoView({ behavior: 'smooth' })
         return
       }
 
@@ -136,6 +139,7 @@ export default function CartPage() {
     } catch (err) {
       if (err.message && err.message.includes('недоступен')) {
         setUnavailableModal({ message: err.message })
+        topRef.current?.scrollIntoView({ behavior: 'smooth' })
       } else {
         setSubmitError(err.message || 'Ошибка при оформлении заказа')
       }
@@ -146,12 +150,15 @@ export default function CartPage() {
 
   async function requestNotify(productId, productName) {
     try {
-      await notifyAvailability({ email: form.email || 'unknown', product_id: productId, product_name: productName })
+      const email = form.email || 'unknown'
+      await notifyAvailability({ email, product_id: productId, product_name: productName })
+      setNotifySuccess((s) => ({ ...s, [productId]: true }))
     } catch {}
   }
 
   return (
     <div className="space-y-6">
+      <div ref={topRef} />
       <h1 className="text-3xl font-bold">Корзина</h1>
 
       {/* Cart items */}
@@ -177,12 +184,19 @@ export default function CartPage() {
               </div>
               {isUnavailable && (
                 <div className="mt-2 space-y-2">
-                  <p className="text-sm font-medium text-red-700">⚠ Товар временно недоступен на выбранные даты</p>
-                  <div className="flex gap-2 flex-wrap">
-                    <button className="btn text-xs bg-amber-100 text-amber-800 hover:bg-amber-200"
-                      onClick={() => requestNotify(item.product.id, item.product.name)}>
-                      Уведомить о доступности
-                    </button>
+                  <p className="text-sm font-medium text-red-700">⚠ Товар временно недоступен на выбранную дату</p>
+                  <div className="flex gap-2 flex-wrap items-center">
+                    {notifySuccess[item.product.id] ? (
+                      <p className="text-sm text-green-700 font-medium">
+                        ✅ Как только товар освободится, мы напишем на {form.email || 'ваш email'}
+                      </p>
+                    ) : (
+                      <button className="btn text-xs bg-amber-100 text-amber-800 hover:bg-amber-200"
+                        onClick={() => requestNotify(item.product.id, item.product.name)}
+                        disabled={!form.email}>
+                        {form.email ? 'Уведомить о доступности' : 'Укажите email ниже'}
+                      </button>
+                    )}
                     <button className="btn-outline text-xs text-red-600" onClick={() => removeFromCart(item._key)}>
                       Убрать из корзины
                     </button>

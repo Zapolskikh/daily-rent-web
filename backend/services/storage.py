@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 
-from sqlalchemy import DateTime, JSON, String, create_engine, select
+from sqlalchemy import DateTime, Integer, JSON, String, create_engine, select
 from sqlalchemy.orm import Mapped, Session, declarative_base, mapped_column, sessionmaker
 
 from models import Order, Product
@@ -62,8 +62,41 @@ class MetaRecord(Base):
     value: Mapped[dict] = mapped_column(JSON, nullable=False)
 
 
+class ReservationRecord(Base):
+    """Tracks how many units of a product are reserved per date."""
+    __tablename__ = "reservations"
+
+    product_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    date: Mapped[str] = mapped_column(String(10), primary_key=True)  # YYYY-MM-DD
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=_get_engine())
+    _migrate_reservations_from_orders()
+
+
+def _migrate_reservations_from_orders() -> None:
+    """One-time migration: populate reservations table from existing active orders."""
+    with _session() as session:
+        # Skip if reservations table already has data
+        existing = session.execute(select(ReservationRecord).limit(1)).first()
+        if existing:
+            return
+        rows = session.execute(select(OrderRecord)).scalars().all()
+    active = [Order.model_validate(r.data) for r in rows if r.status in ("pending", "confirmed")]
+    if not active:
+        return
+    counts: dict[tuple[str, str], int] = {}
+    for order in active:
+        for item in order.items:
+            for date in order.dates:
+                key = (item.product_id, date)
+                counts[key] = counts.get(key, 0) + 1
+    with _session() as session:
+        for (pid, date), cnt in counts.items():
+            session.add(ReservationRecord(product_id=pid, date=date, count=cnt))
+        session.commit()
 
 
 def _session() -> Session:
@@ -179,6 +212,37 @@ def write_available_dates(dates: list[str]) -> None:
             session.add(MetaRecord(key="available_dates", value=payload))
         else:
             row.value = payload
+        session.commit()
+
+
+# ── Reservations ──────────────────────────────────────────────────────────────
+
+def get_reserved_counts(product_ids: list[str], dates: list[str]) -> dict[tuple[str, str], int]:
+    """Returns {(product_id, date): count} for the given products and dates."""
+    if not product_ids or not dates:
+        return {}
+    with _session() as session:
+        rows = session.execute(
+            select(ReservationRecord).where(
+                ReservationRecord.product_id.in_(product_ids),
+                ReservationRecord.date.in_(dates),
+            )
+        ).scalars().all()
+    return {(r.product_id, r.date): r.count for r in rows}
+
+
+def increment_reservations(product_ids: list[str], dates: list[str], delta: int = 1) -> None:
+    """Atomically increment (or decrement if delta<0) reservation counts."""
+    if not product_ids or not dates:
+        return
+    with _session() as session:
+        for pid in product_ids:
+            for date in dates:
+                row = session.get(ReservationRecord, (pid, date))
+                if row:
+                    row.count = max(0, row.count + delta)
+                elif delta > 0:
+                    session.add(ReservationRecord(product_id=pid, date=date, count=delta))
         session.commit()
 
 

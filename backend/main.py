@@ -39,6 +39,8 @@ from services.email_service import EmailConfigError, send_contact_email, send_or
 from services.object_storage import ObjectStorageConfigError, save_product_image
 from services.storage import (
     delete_product_by_id,
+    get_reserved_counts,
+    increment_reservations,
     init_db,
     read_available_dates,
     read_orders,
@@ -192,19 +194,8 @@ def check_availability(payload: AvailabilityCheck) -> AvailabilityResult:
         return AvailabilityResult(unavailable_product_ids=[])
 
     products_map = {p.id: p for p in read_products()}
-    orders = [o for o in read_orders() if o.status in ("confirmed", "pending")]
-
-    requested_dates = set(payload.dates)
-    requested_ids = {item.product_id for item in payload.items}
-
-    # Count how many of each product is already booked for these dates
-    booked: dict[str, int] = {}
-    for order in orders:
-        if not set(order.dates) & requested_dates:
-            continue
-        for item in order.items:
-            if item.product_id in requested_ids:
-                booked[item.product_id] = booked.get(item.product_id, 0) + 1
+    requested_ids = [item.product_id for item in payload.items]
+    reserved = get_reserved_counts(requested_ids, payload.dates)
 
     unavailable = []
     for product_id in requested_ids:
@@ -212,7 +203,9 @@ def check_availability(payload: AvailabilityCheck) -> AvailabilityResult:
         if product is None:
             unavailable.append(product_id)
             continue
-        if booked.get(product_id, 0) >= product.stock_quantity:
+        # max reserved count across any of the requested dates
+        max_reserved = max((reserved.get((product_id, d), 0) for d in payload.dates), default=0)
+        if max_reserved >= product.stock_quantity:
             unavailable.append(product_id)
 
     return AvailabilityResult(unavailable_product_ids=unavailable)
@@ -241,48 +234,24 @@ def get_booked_slots() -> dict:
 
 @app.post("/api/orders", response_model=Order)
 def create_order(payload: OrderCreate) -> Order:
-    # Re-check availability server-side before creating order
     if payload.dates:
         products_map = {p.id: p for p in read_products()}
-        active_orders = [o for o in read_orders() if o.status in ("confirmed", "pending")]
-        requested_dates = set(payload.dates)
-
-        # Count bookings per product per date
-        booked: dict[str, int] = {}
-        # Count bookings per product per date+slot
-        slot_booked: dict[str, int] = {}
-        for order in active_orders:
-            overlap = set(order.dates) & requested_dates
-            if not overlap:
-                continue
-            for item in order.items:
-                booked[item.product_id] = booked.get(item.product_id, 0) + 1
-                # slot-level key: product_id|date|slot
-                if payload.delivery_slot and order.delivery_slot == payload.delivery_slot:
-                    for d in overlap:
-                        key = f"{item.product_id}|{d}|{payload.delivery_slot}"
-                        slot_booked[key] = slot_booked.get(key, 0) + 1
+        product_ids = [item.product_id for item in payload.items]
+        reserved = get_reserved_counts(product_ids, payload.dates)
 
         for item in payload.items:
             product = products_map.get(item.product_id)
             stock = product.stock_quantity if product else 0
+            for d in payload.dates:
+                if reserved.get((item.product_id, d), 0) >= stock:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"Товар «{item.product_name}» недоступен на {d}"
+                    )
 
-            # Check slot-level conflict first (most specific)
-            if payload.delivery_slot:
-                for d in requested_dates:
-                    key = f"{item.product_id}|{d}|{payload.delivery_slot}"
-                    if slot_booked.get(key, 0) >= stock:
-                        raise HTTPException(
-                            status_code=409,
-                            detail=f"Товар «{item.product_name}» уже забронирован на {d} {payload.delivery_slot}"
-                        )
-
-            # General date-level conflict
-            if booked.get(item.product_id, 0) >= stock:
-                raise HTTPException(
-                    status_code=409,
-                    detail=f"Товар «{item.product_name}» недоступен на выбранные даты"
-                )
+        # Reserve the product for these dates
+        product_ids_list = [item.product_id for item in payload.items]
+        increment_reservations(product_ids_list, payload.dates, delta=1)
     # Calculate total
     total = 0.0
     days = max(len(payload.dates), 1)
@@ -320,9 +289,14 @@ def update_order_status(
     for index, order in enumerate(orders):
         if order.id != order_id:
             continue
+        prev_status = order.status
         updated = order.model_copy(update={"status": payload.status})
         orders[index] = updated
         write_orders(orders)
+        # Release reservation when order is cancelled
+        if payload.status == "cancelled" and prev_status in ("pending", "confirmed"):
+            product_ids = [item.product_id for item in order.items]
+            increment_reservations(product_ids, order.dates, delta=-1)
         return updated
     raise HTTPException(status_code=404, detail="Order not found")
 
