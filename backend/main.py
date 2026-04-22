@@ -38,14 +38,15 @@ from models import (
 from services.email_service import EmailConfigError, send_contact_email, send_order_email
 from services.object_storage import ObjectStorageConfigError, save_product_image
 from services.storage import (
+    delete_product_by_id,
     init_db,
     read_available_dates,
     read_orders,
     read_products,
     seed_legacy_data_if_empty,
+    upsert_product,
     write_available_dates,
     write_orders,
-    write_products,
 )
 from services.telegram_service import (
     TelegramConfigError,
@@ -316,7 +317,6 @@ def upload_image(
 
 @app.post("/api/admin/products", response_model=Product)
 def create_product(payload: ProductCreate, _: str = Depends(verify_admin)) -> Product:
-    products = read_products()
     now = utc_now()
     image_url = (payload.image_url or "").strip() or DEFAULT_PRODUCT_IMAGE_URL
     new_product = Product(
@@ -326,34 +326,29 @@ def create_product(payload: ProductCreate, _: str = Depends(verify_admin)) -> Pr
         created_at=now,
         updated_at=now,
     )
-    products.append(new_product)
-    write_products(products)
+    upsert_product(new_product)
     return new_product
 
 
 @app.put("/api/admin/products/{product_id}", response_model=Product)
 def update_product(product_id: str, payload: ProductUpdate, _: str = Depends(verify_admin)) -> Product:
     products = read_products()
-    for index, item in enumerate(products):
+    for item in products:
         if item.id != product_id:
             continue
         updates = payload.model_dump(exclude_unset=True)
         if "image_url" in updates:
             updates["image_url"] = (updates.get("image_url") or "").strip() or DEFAULT_PRODUCT_IMAGE_URL
         updated = item.model_copy(update={**updates, "updated_at": utc_now()})
-        products[index] = updated
-        write_products(products)
+        upsert_product(updated)
         return updated
     raise HTTPException(status_code=404, detail="Product not found")
 
 
 @app.delete("/api/admin/products/{product_id}", response_model=MessageResponse)
 def delete_product(product_id: str, _: str = Depends(verify_admin)) -> MessageResponse:
-    products = read_products()
-    updated = [item for item in products if item.id != product_id]
-    if len(updated) == len(products):
+    if not delete_product_by_id(product_id):
         raise HTTPException(status_code=404, detail="Product not found")
-    write_products(updated)
     return MessageResponse(message="Product deleted")
 
 

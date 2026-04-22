@@ -76,16 +76,65 @@ def _session() -> Session:
 def read_products() -> list[Product]:
     with _session() as session:
         rows = session.execute(select(ProductRecord)).scalars().all()
-    return [Product.model_validate(item.data) for item in rows]
+    result = []
+    for item in rows:
+        try:
+            data = item.data
+            # Normalize options: filter out any non-dict entries
+            if isinstance(data, dict) and isinstance(data.get("options"), list):
+                data["options"] = [
+                    o for o in data["options"] if isinstance(o, dict)
+                ]
+            result.append(Product.model_validate(data))
+        except Exception:
+            pass
+    return result
+
+
+def _serialize_product(item: Product) -> dict:
+    return json.loads(item.model_dump_json())
 
 
 def write_products(products: list[Product]) -> None:
+    """Full replace — only used by seed. Prefer upsert_product/delete_product for API calls."""
     with _session() as session:
-        session.query(ProductRecord).delete()
+        existing_ids = set(row[0] for row in session.execute(select(ProductRecord.id)).all())
+        incoming_ids = {item.id for item in products}
+        # Delete removed
+        for dead_id in existing_ids - incoming_ids:
+            session.query(ProductRecord).filter(ProductRecord.id == dead_id).delete()
+        # Upsert
         for item in products:
-            payload = json.loads(item.model_dump_json())
+            payload = _serialize_product(item)
+            row = session.get(ProductRecord, item.id)
+            if row:
+                row.data = payload
+            else:
+                session.add(ProductRecord(id=item.id, data=payload))
+        session.commit()
+
+
+def upsert_product(item: Product) -> None:
+    """Insert or update a single product by id."""
+    with _session() as session:
+        payload = _serialize_product(item)
+        row = session.get(ProductRecord, item.id)
+        if row:
+            row.data = payload
+        else:
             session.add(ProductRecord(id=item.id, data=payload))
         session.commit()
+
+
+def delete_product_by_id(product_id: str) -> bool:
+    """Delete a single product. Returns True if found and deleted."""
+    with _session() as session:
+        row = session.get(ProductRecord, product_id)
+        if not row:
+            return False
+        session.delete(row)
+        session.commit()
+        return True
 
 
 # ── Orders ────────────────────────────────────────────────────────────────────
@@ -134,19 +183,18 @@ def write_available_dates(dates: list[str]) -> None:
 
 
 def seed_products_from_file_if_empty(path: Path = PRODUCTS_FILE) -> None:
-    with _session() as session:
-        existing = session.execute(select(ProductRecord.id).limit(1)).first()
-        if existing:
-            return
-
+    """Seed only products whose id doesn't exist in the DB yet."""
     if not path.exists():
         return
 
+    with _session() as session:
+        existing_ids = set(row[0] for row in session.execute(select(ProductRecord.id)).all())
+
     payload = json.loads(path.read_text(encoding="utf-8"))
     items = [Product.model_validate(item) for item in payload.get("products", [])]
-    if not items:
-        return
-    write_products(items)
+    new_items = [item for item in items if item.id not in existing_ids]
+    for item in new_items:
+        upsert_product(item)
 
 
 def seed_orders_from_file_if_empty(path: Path = ORDERS_FILE) -> None:
