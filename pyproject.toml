@@ -11,5 +11,5 @@ dependencies = [
     "pyTelegramBotAPI==4.26.0",
     "SQLAlchemy==2.0.41",
     "cloudinary==1.44.1",
-    "psycopg2-binary==2.9.10",
+    "psycopg[binary]==3.2.6",
 ]
