@@ -362,16 +362,16 @@ export default function AdminPage() {
             <div className="space-y-3">
               {products.map((item) => (
                 <article key={item.id} className="rounded-xl border border-slate-200 p-3">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
                       <h3 className="font-semibold">{item.name}</h3>
-                      <p className="text-sm text-slate-500">{item.description}</p>
+                      <p className="text-sm text-slate-500 break-words">{item.description}</p>
                       <p className="mt-1 text-sm text-brand">{item.price_per_day} Kč/день · {item.stock_quantity ?? 1} шт.</p>
                       {item.options?.length > 0 && (
                         <p className="text-xs text-slate-400">{item.options.map((o) => o.name).join(', ')}</p>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 shrink-0">
                       <button className="btn-outline" onClick={() => startEdit(item)}>Изменить</button>
                       <button className="btn-outline text-red-600" onClick={() => onDelete(item.id)}>Удалить</button>
                     </div>
@@ -436,9 +436,11 @@ export default function AdminPage() {
 
       {/* ── Dates tab ── */}
       {activeTab === 'dates' && (
-        <section className="card space-y-4">
-          <h2 className="text-xl font-semibold">Доступные даты доставки</h2>
-          <p className="text-sm text-slate-500">Отметьте даты, когда вы можете осуществить доставку.</p>
+        <section className="card space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold">Доступные даты доставки</h2>
+            <p className="text-sm text-slate-500 mt-1">Отметьте даты, когда вы можете осуществить доставку.</p>
+          </div>
           {grouped.map((month) => (
             <div key={month.key}>
               <p className="mb-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">{month.label}</p>
@@ -456,8 +458,32 @@ export default function AdminPage() {
               </div>
             </div>
           ))}
+
+          {/* Time slots */}
+          <div className="border-t pt-4 space-y-3">
+            <h3 className="font-semibold">Временные слоты доставки</h3>
+            <p className="text-sm text-slate-500">Выберите часовые промежутки, в которые вы доступны для доставки.</p>
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: 14 }, (_, i) => {
+                const h = i + 8
+                const slot = `${String(h).padStart(2, '0')}:00-${String(h + 1).padStart(2, '0')}:00`
+                const selected = selectedDates.includes(slot)
+                return (
+                  <button key={slot} onClick={() => toggleDate(slot)}
+                    className={`px-3 py-2 rounded-xl border text-sm font-medium transition
+                      ${selected ? 'bg-brand text-white border-brand' : 'border-slate-200 text-slate-700 hover:border-teal-400 hover:text-teal-700'}`}>
+                    {h}:00 – {h + 1}:00
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-xs text-slate-400">
+              Выбранные слоты: {selectedDates.filter(d => d.includes(':')).join(', ') || 'не выбраны'}
+            </p>
+          </div>
+
           <div className="flex items-center gap-4">
-            <button className="btn-primary" onClick={saveDates}>Сохранить даты</button>
+            <button className="btn-primary" onClick={saveDates}>Сохранить даты и слоты</button>
             {datesMessage && <p className="text-sm text-green-700">{datesMessage}</p>}
           </div>
         </section>

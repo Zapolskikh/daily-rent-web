@@ -26,3 +26,27 @@
 .input {
   @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2 outline-none ring-brand/30 transition focus:ring-4;
 }
+
+/* react-datepicker overrides */
+.react-datepicker {
+  @apply border border-slate-200 rounded-2xl shadow-sm font-sans text-sm;
+}
+.react-datepicker__header {
+  @apply bg-slate-50 border-b border-slate-200 rounded-t-2xl;
+}
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  @apply bg-teal-600 text-white rounded-lg;
+}
+.react-datepicker__day:hover {
+  @apply bg-teal-100 rounded-lg;
+}
+.react-datepicker__day--disabled {
+  @apply text-slate-300 cursor-not-allowed;
+}
+.react-datepicker__day--disabled:hover {
+  @apply bg-transparent;
+}
+.react-datepicker__navigation-icon::before {
+  @apply border-slate-500;
+}

@@ -192,7 +192,7 @@ def check_availability(payload: AvailabilityCheck) -> AvailabilityResult:
         return AvailabilityResult(unavailable_product_ids=[])
 
     products_map = {p.id: p for p in read_products()}
-    orders = [o for o in read_orders() if o.status == "confirmed"]
+    orders = [o for o in read_orders() if o.status in ("confirmed", "pending")]
 
     requested_dates = set(payload.dates)
     requested_ids = {item.product_id for item in payload.items}
@@ -222,6 +222,25 @@ def check_availability(payload: AvailabilityCheck) -> AvailabilityResult:
 
 @app.post("/api/orders", response_model=Order)
 def create_order(payload: OrderCreate) -> Order:
+    # Re-check availability server-side before creating order
+    if payload.dates:
+        products_map = {p.id: p for p in read_products()}
+        active_orders = [o for o in read_orders() if o.status in ("confirmed", "pending")]
+        requested_dates = set(payload.dates)
+        booked: dict[str, int] = {}
+        for order in active_orders:
+            if not set(order.dates) & requested_dates:
+                continue
+            for item in order.items:
+                booked[item.product_id] = booked.get(item.product_id, 0) + 1
+        for item in payload.items:
+            product = products_map.get(item.product_id)
+            stock = product.stock_quantity if product else 0
+            if booked.get(item.product_id, 0) >= stock:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"Товар «{item.product_name}» недоступен на выбранные даты"
+                )
     # Calculate total
     total = 0.0
     days = max(len(payload.dates), 1)
