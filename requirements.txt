@@ -5,5 +5,5 @@ pydantic[email]==2.11.4
 itsdangerous==2.2.0
 pyTelegramBotAPI==4.26.0
 SQLAlchemy==2.0.41
-psycopg2-binary==2.9.10
 cloudinary==1.44.1
+psycopg2-binary==2.9.10
