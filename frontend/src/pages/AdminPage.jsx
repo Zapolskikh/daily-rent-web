@@ -79,6 +79,7 @@ export default function AdminPage() {
   const [calendarDays] = useState(buildCalendarDays)
   const [savedDates, setSavedDates] = useState([])   // what's actually in the DB
   const [selectedDates, setSelectedDates] = useState([])  // local editing state
+  const [focusedDate, setFocusedDate] = useState(null)    // date being edited for slots
   const [datesMessage, setDatesMessage] = useState('')
   const [datesSaving, setDatesSaving] = useState(false)
 
@@ -232,7 +233,20 @@ export default function AdminPage() {
 
   // Dates management
   function toggleDate(iso) {
+    // iso is either 'YYYY-MM-DD' (date) or 'YYYY-MM-DD:HH:MM-HH:MM' (dated slot)
     setSelectedDates((prev) => prev.includes(iso) ? prev.filter((d) => d !== iso) : [...prev, iso])
+  }
+
+  function focusDateForSlots(iso) {
+    // iso = 'YYYY-MM-DD'
+    setFocusedDate((prev) => prev === iso ? prev : iso)
+  }
+
+  function toggleSlot(slotValue) {
+    // slotValue = 'HH:MM-HH:MM', focusedDate must be set
+    if (!focusedDate) return
+    const key = `${focusedDate}:${slotValue}`
+    setSelectedDates((prev) => prev.includes(key) ? prev.filter((d) => d !== key) : [...prev, key])
   }
 
   async function saveDates() {
@@ -481,6 +495,9 @@ export default function AdminPage() {
             </div>
 
             {/* Date grid */}
+            <p className="text-xs text-slate-500">
+              💡 <strong>Левый клик</strong> — включить/выключить дату. <strong>Клик по уже включённой дате</strong> — выбрать её для редактирования слотов (подсветится рамкой).
+            </p>
             {grouped.map((month) => (
               <div key={month.key}>
                 <p className="mb-2 text-sm font-semibold text-slate-500 uppercase tracking-wide">{month.label}</p>
@@ -488,25 +505,37 @@ export default function AdminPage() {
                   {month.days.map((iso) => {
                     const inDb = savedDateSet.has(iso)
                     const selected = selectedDateSet.has(iso)
+                    const isFocused = focusedDate === iso
+                    const slotCount = selectedDates.filter(d => d.startsWith(iso + ':')).length
                     const day = new Date(iso).getDate()
-                    // States: saved+selected=teal, saved+unselected=red(will remove), new+selected=green, none=slate
                     let cls = 'bg-slate-100 text-slate-600 hover:bg-teal-50'
-                    let title = 'Нажмите, чтобы добавить'
-                    if (inDb && selected) {
-                      cls = 'bg-teal-600 text-white hover:bg-teal-500'
-                      title = 'В БД · нажмите, чтобы убрать'
-                    } else if (inDb && !selected) {
-                      cls = 'bg-red-100 text-red-700 border border-red-400 hover:bg-red-200'
-                      title = 'Будет удалено из БД'
-                    } else if (!inDb && selected) {
-                      cls = 'bg-green-200 text-green-800 border border-green-500 hover:bg-green-300'
-                      title = 'Будет добавлено в БД'
-                    }
+                    if (inDb && selected) cls = 'bg-teal-600 text-white hover:bg-teal-500'
+                    else if (inDb && !selected) cls = 'bg-red-100 text-red-700 border border-red-400 hover:bg-red-200'
+                    else if (!inDb && selected) cls = 'bg-green-200 text-green-800 border border-green-500 hover:bg-green-300'
+                    if (isFocused) cls += ' ring-2 ring-offset-1 ring-amber-400'
                     return (
-                      <button key={iso} onClick={() => toggleDate(iso)} title={title}
-                        className={`h-9 w-9 rounded-lg text-sm font-medium transition ${cls}`}>
-                        {day}
-                      </button>
+                      <div key={iso} className="relative">
+                        <button
+                          onClick={() => {
+                            if (selected) {
+                              // already selected → just focus for slot editing
+                              focusDateForSlots(iso)
+                            } else {
+                              toggleDate(iso)
+                              focusDateForSlots(iso)
+                            }
+                          }}
+                          onContextMenu={(e) => { e.preventDefault(); toggleDate(iso) }}
+                          title={selected ? 'Нажмите — редактировать слоты | ПКМ — убрать дату' : 'Нажмите, чтобы добавить'}
+                          className={`h-9 w-9 rounded-lg text-sm font-medium transition ${cls}`}>
+                          {day}
+                        </button>
+                        {slotCount > 0 && (
+                          <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-400 text-white text-[9px] font-bold flex items-center justify-center pointer-events-none">
+                            {slotCount}
+                          </span>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
@@ -524,33 +553,77 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* Time slots */}
-            <div className="border-t pt-5 space-y-3">
-              <h3 className="font-semibold">Временные слоты доставки</h3>
-              <p className="text-sm text-slate-500">Отметьте часовые промежутки, когда вы можете доставить товар. Клиент выберет один из них при оформлении заказа.</p>
-              <div className="flex flex-wrap gap-2">
-                {Array.from({ length: 14 }, (_, i) => {
-                  const h = i + 8
-                  const slot = `${String(h).padStart(2, '0')}:00-${String(h + 1).padStart(2, '0')}:00`
-                  const inDb = savedDateSet.has(slot)
-                  const selected = selectedDateSet.has(slot)
-                  let cls = 'border-slate-200 text-slate-700 hover:border-teal-400'
-                  if (inDb && selected) cls = 'bg-teal-600 text-white border-teal-600'
-                  else if (inDb && !selected) cls = 'bg-red-50 text-red-700 border-red-400'
-                  else if (!inDb && selected) cls = 'bg-green-100 text-green-800 border-green-500'
-                  return (
-                    <button key={slot} onClick={() => toggleDate(slot)}
-                      title={inDb && selected ? 'В БД · нажмите, чтобы убрать' : inDb ? 'Будет удалено' : selected ? 'Будет добавлено' : 'Нажмите, чтобы добавить'}
-                      className={`px-3 py-2 rounded-xl border text-sm font-medium transition ${cls}`}>
-                      {h}:00 – {h + 1}:00
-                    </button>
-                  )
-                })}
+            {/* Per-date time slots */}
+            <div className="border-t pt-5 space-y-4">
+              <div>
+                <h3 className="font-semibold">Временные слоты доставки</h3>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  Выберите дату в календаре выше (нажмите на включённую) — и задайте для неё слоты.
+                </p>
               </div>
-              <div className="text-xs text-slate-500 space-y-0.5">
-                <p>В БД: {savedDates.filter(d => d.includes(':')).join(', ') || 'слоты не заданы'}</p>
-                {hasChanges && <p className="text-amber-700">После сохранения: {selectedDates.filter(d => d.includes(':')).join(', ') || 'без слотов'}</p>}
-              </div>
+
+              {focusedDate ? (() => {
+                const isoLabel = new Date(focusedDate + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+                const isDateSelected = selectedDateSet.has(focusedDate)
+                return (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <p className="font-semibold text-amber-900">📅 Слоты для {isoLabel}</p>
+                      {!isDateSelected && (
+                        <span className="text-xs text-red-600 font-medium">⚠ Эта дата не включена — сначала добавьте её в календаре</span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from({ length: 14 }, (_, i) => {
+                        const h = i + 8
+                        const slot = `${String(h).padStart(2, '0')}:00-${String(h + 1).padStart(2, '0')}:00`
+                        const key = `${focusedDate}:${slot}`
+                        const inDb = savedDateSet.has(key)
+                        const selected = selectedDateSet.has(key)
+                        let cls = 'border-slate-200 text-slate-500 hover:border-teal-400 hover:text-teal-700'
+                        if (inDb && selected) cls = 'bg-teal-600 text-white border-teal-600'
+                        else if (inDb && !selected) cls = 'bg-red-50 text-red-700 border-red-400'
+                        else if (!inDb && selected) cls = 'bg-green-100 text-green-800 border-green-500'
+                        return (
+                          <button key={slot} onClick={() => toggleSlot(slot)} disabled={!isDateSelected}
+                            title={inDb && selected ? 'В БД · нажмите, чтобы убрать' : inDb ? 'Будет удалено' : selected ? 'Будет добавлено' : 'Нажмите, чтобы добавить'}
+                            className={`px-3 py-2 rounded-xl border text-sm font-medium transition disabled:opacity-40 disabled:cursor-not-allowed ${cls}`}>
+                            {h}:00 – {h + 1}:00
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Выбрано: {selectedDates.filter(d => d.startsWith(focusedDate + ':')).map(d => d.split(':')[1]).join(', ') || 'нет слотов'}
+                    </p>
+                  </div>
+                )
+              })() : (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 text-center">
+                  Нажмите на дату в календаре, чтобы задать для неё временные слоты
+                </div>
+              )}
+
+              {/* Summary of all dates with slots */}
+              {selectedDates.filter(d => d.includes(':')).length > 0 && (
+                <div className="text-xs space-y-1">
+                  <p className="font-medium text-slate-600">Все настроенные слоты:</p>
+                  {(() => {
+                    const byDate = {}
+                    selectedDates.filter(d => d.includes(':')).forEach(entry => {
+                      const [date, slot] = entry.split(/:(.+)/)
+                      if (!byDate[date]) byDate[date] = []
+                      byDate[date].push(slot)
+                    })
+                    return Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b)).map(([date, slots]) => (
+                      <p key={date} className="text-slate-600">
+                        <span className="font-medium">{new Date(date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}:</span>{' '}
+                        {slots.map(s => { const h = parseInt(s); return `${h}:00–${h+1}:00` }).join(', ')}
+                      </p>
+                    ))
+                  })()}
+                </div>
+              )}
             </div>
 
             {/* Save */}

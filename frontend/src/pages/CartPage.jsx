@@ -8,14 +8,6 @@ import { ru } from 'date-fns/locale/ru'
 
 registerLocale('ru', ru)
 
-const HOURS = Array.from({ length: 12 }, (_, i) => {
-  const h = i + 8
-  return {
-    value: `${String(h).padStart(2, '0')}:00-${String(h + 1).padStart(2, '0')}:00`,
-    label: `${h}:00 – ${h + 1}:00`,
-  }
-})
-
 export default function CartPage() {
   const { items, removeFromCart, clearCart } = useCart()
   const navigate = useNavigate()
@@ -38,8 +30,9 @@ export default function CartPage() {
     getAvailableDates()
       .then((data) => {
         const raw = data.dates || []
+        // dates: entries without ':', slots: entries with 'YYYY-MM-DD:HH:MM-HH:MM'
         setAvailableDates(raw.filter((d) => !d.includes(':')))
-        setAvailableSlots(raw.filter((d) => d.includes(':')))
+        setAvailableSlots(raw.filter((d) => /^\d{4}-\d{2}-\d{2}:/.test(d)))
       })
       .catch(() => {})
   }, [])
@@ -64,6 +57,9 @@ export default function CartPage() {
     )
   }
 
+  // Reset slot when start date changes
+  useEffect(() => { setSelectedSlot('') }, [startDate])
+
   // compute all dates in the selected range
   function dateRange(start, end) {
     if (!start) return []
@@ -83,6 +79,14 @@ export default function CartPage() {
     return (item.product.price_per_day + optTotal) * days * item.quantity
   })
   const grandTotal = itemTotals.reduce((s, v) => s + v, 0)
+
+  // Slots available for the delivery (start) date
+  const startIso = startDate ? startDate.toISOString().slice(0, 10) : null
+  const slotsForStartDate = startIso
+    ? availableSlots
+        .filter(d => d.startsWith(startIso + ':'))
+        .map(d => d.slice(startIso.length + 1))  // strip 'YYYY-MM-DD:' prefix
+    : []
 
   function isDeliveryDate(date) {
     const iso = date.toISOString().slice(0, 10)
@@ -252,28 +256,42 @@ export default function CartPage() {
         </div>
 
         {/* Time slot picker */}
-        {deliveryType === 'delivery' && (
+        {deliveryType === 'delivery' && startDate && (
           <div>
-            <h3 className="mb-2 font-medium text-slate-700">Временной слот доставки</h3>
-            <div className="flex flex-wrap gap-2">
-              {(availableSlots.length > 0 ? availableSlots : HOURS.map((h) => h.value)).map((slot) => {
-                const label = availableSlots.length > 0 ? slot : HOURS.find((h) => h.value === slot)?.label || slot
-                return (
-                  <button key={slot} type="button"
-                    onClick={() => setSelectedSlot(slot === selectedSlot ? '' : slot)}
-                    className={`px-4 py-2 rounded-xl border text-sm font-medium transition
-                      ${selectedSlot === slot
-                        ? 'bg-teal-600 text-white border-teal-600'
-                        : 'border-slate-200 text-slate-700 hover:border-teal-400 hover:text-teal-700'}`}>
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
+            <h3 className="mb-1 font-medium text-slate-700">
+              Временной слот доставки
+            </h3>
+            <p className="mb-2 text-sm text-slate-500">
+              Дата доставки: <strong>{startDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>
+            </p>
+            {slotsForStartDate.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {slotsForStartDate.map((slot) => {
+                  const [hStart] = slot.split('-')
+                  const h = parseInt(hStart)
+                  const label = `${h}:00 – ${h + 1}:00`
+                  return (
+                    <button key={slot} type="button"
+                      onClick={() => setSelectedSlot(slot === selectedSlot ? '' : slot)}
+                      className={`px-4 py-2 rounded-xl border text-sm font-medium transition
+                        ${selectedSlot === slot
+                          ? 'bg-teal-600 text-white border-teal-600'
+                          : 'border-slate-200 text-slate-700 hover:border-teal-400 hover:text-teal-700'}`}>
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400 italic">Для этой даты временные слоты не настроены — уточните время доставки в комментарии.</p>
+            )}
             {selectedSlot && (
-              <p className="mt-2 text-sm text-teal-700">Слот: <strong>{selectedSlot}</strong></p>
+              <p className="mt-2 text-sm text-teal-700">Слот: <strong>{(() => { const h = parseInt(selectedSlot); return `${h}:00 – ${h+1}:00` })()}</strong></p>
             )}
           </div>
+        )}
+        {deliveryType === 'delivery' && !startDate && (
+          <p className="text-sm text-slate-400 italic">Выберите дату аренды, чтобы увидеть доступные слоты доставки.</p>
         )}
       </section>
 
