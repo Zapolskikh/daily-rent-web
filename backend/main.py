@@ -321,7 +321,7 @@ def create_product(payload: ProductCreate, _: str = Depends(verify_admin)) -> Pr
     image_url = (payload.image_url or "").strip() or DEFAULT_PRODUCT_IMAGE_URL
     new_product = Product(
         id=secrets.token_urlsafe(8),
-        **payload.model_dump(),
+        **payload.model_dump(exclude={"image_url"}),
         image_url=image_url,
         created_at=now,
         updated_at=now,
