@@ -13,11 +13,11 @@ from models import Order, Product
 def _build_database_url() -> str:
     url = os.getenv("DATABASE_URL", "sqlite:////tmp/app.db")
     if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+psycopg://", 1)
+        url = url.replace("postgres://", "postgresql+asyncpg://", 1)
     elif url.startswith("postgresql://") and "+" not in url.split("://", 1)[0]:
-        url = url.replace("postgresql://", "postgresql+psycopg://", 1)
-    elif url.startswith("postgresql+psycopg2://"):
-        url = url.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif url.startswith("postgresql+psycopg2://") or url.startswith("postgresql+psycopg://"):
+        url = "postgresql+asyncpg://" + url.split("://", 1)[1]
     return url
 
 
