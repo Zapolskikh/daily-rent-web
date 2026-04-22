@@ -7,7 +7,6 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from fastapi.staticfiles import StaticFiles
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from models import (
@@ -51,22 +50,26 @@ from services.telegram_service import (
 
 BASE_DIR = Path(__file__).resolve().parent
 UPLOADS_DIR = BASE_DIR / "uploads"
-UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    pass
 
 
 def _detect_default_product_image_url() -> str:
     from_env = os.getenv("DEFAULT_PRODUCT_IMAGE_URL", "").strip()
     if from_env:
         return from_env
-
-    preferred = UPLOADS_DIR / "tmp_image.jpg"
-    if preferred.exists():
-        return "/uploads/tmp_image.jpg"
-
-    allowed = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"}
-    for item in sorted(UPLOADS_DIR.iterdir(), key=lambda p: p.name.lower()):
-        if item.is_file() and item.suffix.lower() in allowed:
-            return f"/uploads/{item.name}"
+    try:
+        preferred = UPLOADS_DIR / "tmp_image.jpg"
+        if preferred.exists():
+            return "/uploads/tmp_image.jpg"
+        allowed = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"}
+        for item in sorted(UPLOADS_DIR.iterdir(), key=lambda p: p.name.lower()):
+            if item.is_file() and item.suffix.lower() in allowed:
+                return f"/uploads/{item.name}"
+    except OSError:
+        pass
     return ""
 
 
@@ -88,8 +91,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 security = HTTPBearer(auto_error=False)
 serializer = URLSafeTimedSerializer(os.getenv("APP_SECRET", "change_me"), salt="admin-auth")
