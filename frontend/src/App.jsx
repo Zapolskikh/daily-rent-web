@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
 import DeliveryTermsPage from './pages/DeliveryTermsPage'
 import CartPage from './pages/CartPage'
+import ContactPage from './pages/ContactPage'
 
 function CartIcon() {
   const { totalCount } = useCart()
@@ -35,7 +36,7 @@ function Layout() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen">
       <header
         ref={headerRef}
         className="sticky top-0 z-40"
@@ -57,6 +58,7 @@ function Layout() {
           <nav className="flex gap-3">
             <Link to="/" className="rounded-xl px-5 py-2.5 text-lg font-semibold text-white hover:bg-white/20 transition">🏷️ Каталог</Link>
             <Link to="/delivery-terms" className="rounded-xl px-5 py-2.5 text-lg font-semibold text-white hover:bg-white/20 transition">📋 Условия</Link>
+            <Link to="/contact" className="rounded-xl px-5 py-2.5 text-lg font-semibold text-white hover:bg-white/20 transition">📩 Связаться</Link>
             <CartIcon />
             {import.meta.env.DEV && (
               <Link to="/admin" className="rounded-xl bg-white/20 px-5 py-2.5 text-base font-semibold text-white hover:bg-white/30 transition">Админ</Link>
@@ -64,10 +66,11 @@ function Layout() {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-6 py-8">
+      <main className="mx-auto max-w-7xl px-6 py-10">
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/delivery-terms" element={<DeliveryTermsPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route path="/cart" element={<CartPage />} />
           <Route path="/admin" element={<AdminPage />} />
         </Routes>

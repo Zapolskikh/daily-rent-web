@@ -1,8 +1,20 @@
 export default function CategoryFilter({ categories, activeCategory, onSelect }) {
+  const activeStyle = {
+    background: 'linear-gradient(135deg,#0d9488,#0f766e)',
+    boxShadow: '0 2px 8px rgba(13,148,136,0.32)',
+    color: 'white',
+    fontWeight: 600,
+  }
+  const inactiveStyle = {
+    background: 'rgba(255,255,255,0.85)',
+    borderColor: 'rgba(13,148,136,0.22)',
+    color: '#334155',
+  }
   return (
-    <div className="mb-6 flex flex-wrap gap-2">
+    <div className="mb-2 flex flex-wrap gap-2">
       <button
-        className={activeCategory ? 'btn-outline' : 'btn-primary'}
+        className="btn border text-sm px-4 py-1.5 transition-all duration-150"
+        style={activeCategory ? inactiveStyle : activeStyle}
         onClick={() => onSelect('')}
       >
         Все товары
@@ -10,7 +22,8 @@ export default function CategoryFilter({ categories, activeCategory, onSelect })
       {categories.map((item) => (
         <button
           key={item.slug}
-          className={activeCategory === item.slug ? 'btn-primary' : 'btn-outline'}
+          className="btn border text-sm px-4 py-1.5 transition-all duration-150"
+          style={activeCategory === item.slug ? activeStyle : inactiveStyle}
           onClick={() => onSelect(item.slug)}
         >
           {item.name}

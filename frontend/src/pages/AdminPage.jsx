@@ -56,7 +56,8 @@ function buildCalendarDays() {
 export default function AdminPage() {
   const [password, setPassword] = useState('')
   const [token, setToken] = useState(localStorage.getItem('admin_token') || '')
-  const [activeTab, setActiveTab] = useState('products') // products | orders | dates
+  const [sessionExpired, setSessionExpired] = useState(false)
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('admin_active_tab') || 'products') // products | orders | dates
   const [categories, setCategories] = useState([])
   const [products, setProducts] = useState([])
   const [form, setForm] = useState(emptyForm)
@@ -81,6 +82,16 @@ export default function AdminPage() {
     })
   }
 
+  function handleTokenExpiry(err) {
+    if (err.message === 'Token expired' || err.message === 'Unauthorized' || err.message === 'Invalid token') {
+      localStorage.removeItem('admin_token')
+      setToken('')
+      setSessionExpired(true)
+      return true
+    }
+    return false
+  }
+
   // Orders tab
   const [orders, setOrders] = useState([])
 
@@ -98,6 +109,7 @@ export default function AdminPage() {
   const [noteSaving, setNoteSaving] = useState(false)
   const [commentInputs, setCommentInputs] = useState({}) // { noteId: text }
   const [commentSaving, setCommentSaving] = useState({}) // { noteId: bool }
+  const [notesError, setNotesError] = useState('')
 
   async function refreshProducts() {
     const payload = await getProducts('')
@@ -109,7 +121,7 @@ export default function AdminPage() {
       const data = await debugGetProductsRaw(token)
       setDebugRaw(data)
     } catch (err) {
-      setError(err.message)
+      if (!handleTokenExpiry(err)) setError(err.message)
     }
   }
 
@@ -120,7 +132,7 @@ export default function AdminPage() {
       setMessage(result.message)
       await refreshProducts()
     } catch (err) {
-      setError(err.message)
+      if (!handleTokenExpiry(err)) setError(err.message)
     }
   }
 
@@ -128,14 +140,14 @@ export default function AdminPage() {
     try {
       const payload = await getOrders(token)
       setOrders(payload.orders || [])
-    } catch { }
+    } catch (err) { handleTokenExpiry(err) }
   }
 
   async function refreshNotes() {
     try {
       const payload = await getNotes(token)
       setNotes(payload.notes || [])
-    } catch { }
+    } catch (err) { handleTokenExpiry(err) }
   }
 
   async function refreshDates() {
@@ -152,7 +164,7 @@ export default function AdminPage() {
     try {
       const payload = await getOrders(token)
       setOrders(payload.orders || [])
-    } catch { }
+    } catch (err) { handleTokenExpiry(err) }
   }
 
   useEffect(() => {
@@ -171,6 +183,7 @@ export default function AdminPage() {
   async function onLogin(event) {
     event.preventDefault()
     setError('')
+    setSessionExpired(false)
     try {
       const payload = await adminLogin(password)
       setToken(payload.access_token)
@@ -212,7 +225,7 @@ export default function AdminPage() {
       setEditingId('')
       setMessage('Товар сохранен')
     } catch (err) {
-      setError(err.message)
+      if (!handleTokenExpiry(err)) setError(err.message)
     }
   }
 
@@ -222,7 +235,7 @@ export default function AdminPage() {
       await refreshProducts()
       setMessage('Товар удален')
     } catch (err) {
-      setError(err.message)
+      if (!handleTokenExpiry(err)) setError(err.message)
     }
   }
 
@@ -302,7 +315,7 @@ export default function AdminPage() {
       setSavedDates([...selectedDates])
       setDatesMessage('✅ Сохранено в БД')
     } catch (err) {
-      setDatesMessage('Ошибка: ' + err.message)
+      if (!handleTokenExpiry(err)) setDatesMessage('Ошибка: ' + err.message)
     } finally {
       setDatesSaving(false)
     }
@@ -330,6 +343,11 @@ export default function AdminPage() {
     return (
       <section className="mx-auto max-w-md card">
         <h1 className="mb-4 text-2xl font-semibold">Вход в админ-панель</h1>
+        {sessionExpired && (
+          <div className="mb-4 rounded-xl bg-amber-50 border border-amber-300 px-4 py-3 text-sm text-amber-800 font-medium">
+            ⏱ Сессия истекла. Войдите снова.
+          </div>
+        )}
         <form onSubmit={onLogin} className="grid gap-3">
           <input type="password" className="input" value={password}
             placeholder="Пароль администратора" onChange={(e) => setPassword(e.target.value)} required />
@@ -345,7 +363,7 @@ export default function AdminPage() {
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
           {[['products', 'Товары'], ['orders', 'Заказы'], ['dates', 'Даты доставки'], ['notes', '📝 Заметки']].map(([tab, label]) => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
+            <button key={tab} onClick={() => { setActiveTab(tab); localStorage.setItem('admin_active_tab', tab) }}
               className={activeTab === tab ? 'btn-primary' : 'btn-outline'}>
               {label}
             </button>
@@ -843,12 +861,14 @@ export default function AdminPage() {
                   e.preventDefault()
                   if (!noteText.trim() || noteSaving) return
                   setNoteSaving(true)
+                  setNotesError('')
                   try {
                     const note = await addNote(noteText.trim(), token)
                     setNotes((prev) => [note, ...prev])
                     setNoteText('')
-                  } catch { }
-                  finally { setNoteSaving(false) }
+                  } catch (err) {
+                    if (!handleTokenExpiry(err)) setNotesError(err.message)
+                  } finally { setNoteSaving(false) }
                 }
               }}
             />
@@ -859,17 +879,20 @@ export default function AdminPage() {
                 onClick={async () => {
                   if (!noteText.trim() || noteSaving) return
                   setNoteSaving(true)
+                  setNotesError('')
                   try {
                     const note = await addNote(noteText.trim(), token)
                     setNotes((prev) => [note, ...prev])
                     setNoteText('')
-                  } catch { }
-                  finally { setNoteSaving(false) }
+                  } catch (err) {
+                    if (!handleTokenExpiry(err)) setNotesError(err.message)
+                  } finally { setNoteSaving(false) }
                 }}>
                 {noteSaving ? 'Сохранение...' : '+ Добавить заметку'}
               </button>
               <span className="text-xs text-slate-400">или Ctrl+Enter</span>
             </div>
+            {notesError && <p className="text-sm text-red-600">{notesError}</p>}
           </div>
 
           {/* Notes list */}
@@ -897,7 +920,7 @@ export default function AdminPage() {
                         try {
                           await deleteNote(note.id, token)
                           setNotes((prev) => prev.filter((n) => n.id !== note.id))
-                        } catch { }
+                        } catch (err) { handleTokenExpiry(err) }
                       }}>
                       ✕
                     </button>
@@ -928,7 +951,7 @@ export default function AdminPage() {
                                     ? { ...n, comments: (n.comments || []).filter((x) => x.id !== c.id) }
                                     : n
                                 ))
-                              } catch { }
+                              } catch (err) { handleTokenExpiry(err) }
                             }}>
                             ✕
                           </button>
@@ -958,8 +981,9 @@ export default function AdminPage() {
                                 : n
                             ))
                             setCommentInputs((prev) => ({ ...prev, [note.id]: '' }))
-                          } catch { }
-                          finally { setCommentSaving((prev) => ({ ...prev, [note.id]: false })) }
+                          } catch (err) {
+                            if (!handleTokenExpiry(err)) setNotesError(err.message)
+                          } finally { setCommentSaving((prev) => ({ ...prev, [note.id]: false })) }
                         }
                       }}
                     />
@@ -978,8 +1002,9 @@ export default function AdminPage() {
                               : n
                           ))
                           setCommentInputs((prev) => ({ ...prev, [note.id]: '' }))
-                        } catch { }
-                        finally { setCommentSaving((prev) => ({ ...prev, [note.id]: false })) }
+                        } catch (err) {
+                          if (!handleTokenExpiry(err)) setNotesError(err.message)
+                        } finally { setCommentSaving((prev) => ({ ...prev, [note.id]: false })) }
                       }}>
                       {commentSaving[note.id] ? '...' : '↵'}
                     </button>
