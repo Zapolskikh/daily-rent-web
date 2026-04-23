@@ -66,7 +66,7 @@ export default function HomePage() {
       {/* Hero */}
       <section className="relative overflow-hidden rounded-3xl px-8 py-12 md:py-16 text-white"
         style={{
-          background: 'linear-gradient(135deg, #134e4a 0%, #0f766e 30%, #0891b2 65%, #0e7490 85%, #134e4a 100%)',
+          background: 'linear-gradient(135deg, #091f1c 0%, #0d4540 28%, #0b3455 60%, #0c3448 82%, #091f1c 100%)',
         }}>
         {/* Decorative blobs */}
         <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full opacity-20"
@@ -105,12 +105,14 @@ export default function HomePage() {
 
           {/* Right: billboard */}
           <div className="w-full md:w-[420px] lg:w-[480px] shrink-0" style={{
-            background: 'rgba(255,255,255,0.97)',
-            border: '1px solid rgba(255,255,255,0.9)',
+            background: 'rgba(255,255,255,0.06)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(45,212,191,0.28)',
             borderRadius: '20px',
             padding: '28px 32px',
             minHeight: '200px',
-            boxShadow: '0 8px 40px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.6) inset',
+            boxShadow: '0 0 50px rgba(45,212,191,0.10), 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07)',
           }}>
             {/* Progress bars */}
             <div className="flex gap-1.5 mb-6">
@@ -122,7 +124,7 @@ export default function HomePage() {
                     height: '3px',
                     flex: 1,
                     borderRadius: '2px',
-                    background: i === slide ? '#0d9488' : 'rgba(13,148,136,0.18)',
+                    background: i === slide ? '#2dd4bf' : 'rgba(45,212,191,0.22)',
                     transition: 'background 0.3s',
                     border: 'none',
                     cursor: 'pointer',
@@ -138,13 +140,13 @@ export default function HomePage() {
               <div style={{ fontSize: '3rem', lineHeight: 1, marginBottom: '14px' }}>
                 {billboardSlides[slide].icon}
               </div>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#f0f6ff', margin: 0 }}>
                 {billboardSlides[slide].title}
               </h3>
-              <p style={{ fontSize: '0.95rem', color: '#0f766e', fontWeight: 600, margin: '5px 0 12px' }}>
+              <p style={{ fontSize: '0.95rem', color: '#5eead4', fontWeight: 600, margin: '5px 0 12px' }}>
                 {billboardSlides[slide].sub}
               </p>
-              <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.6, margin: 0 }}>
+              <p style={{ fontSize: '0.9rem', color: 'rgba(203,213,225,0.82)', lineHeight: 1.6, margin: 0 }}>
                 {billboardSlides[slide].body}
               </p>
             </div>

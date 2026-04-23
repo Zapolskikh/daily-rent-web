@@ -6,9 +6,9 @@ export default function CategoryFilter({ categories, activeCategory, onSelect })
     fontWeight: 600,
   }
   const inactiveStyle = {
-    background: 'rgba(255,255,255,0.85)',
-    borderColor: 'rgba(13,148,136,0.22)',
-    color: '#334155',
+    background: 'rgba(255,255,255,0.05)',
+    borderColor: 'rgba(45,212,191,0.18)',
+    color: '#94a3b8',
   }
   return (
     <div className="mb-2 flex flex-wrap gap-2">

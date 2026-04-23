@@ -41,10 +41,10 @@ function Layout() {
         ref={headerRef}
         className="sticky top-0 z-40"
         style={{
-          background: 'linear-gradient(135deg, #134e4a 0%, #0f766e 20%, #0891b2 45%, #0e7490 65%, #0f766e 80%, #134e4a 100%)',
+          background: 'linear-gradient(135deg, #060d1a 0%, #0a2e2a 20%, #07213a 50%, #0a2e2a 80%, #060d1a 100%)',
           backgroundSize: '300% 100%',
           backgroundPosition: '0% 50%',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.35), 0 2px 6px rgba(0,0,0,0.2), inset 0 -2px 0 rgba(255,255,255,0.12), inset 0 1px 0 rgba(255,255,255,0.08)',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(45,212,191,0.12)',
         }}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">

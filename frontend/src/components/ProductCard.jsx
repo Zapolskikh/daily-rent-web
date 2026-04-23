@@ -19,8 +19,8 @@ export default function ProductCard({ product, onOpenModal }) {
         />
         {/* Price badge overlay */}
         <div className="absolute bottom-3 left-3">
-          <span className="rounded-xl px-2.5 py-1 text-sm font-bold text-amber-800"
-            style={{ background: 'rgba(254,243,199,0.92)', backdropFilter: 'blur(4px)', border: '1px solid rgba(245,158,11,0.3)' }}>
+          <span className="rounded-xl px-2.5 py-1 text-sm font-bold"
+            style={{ background: 'rgba(20,10,0,0.80)', backdropFilter: 'blur(6px)', border: '1px solid rgba(251,191,36,0.32)', color: '#fbbf24' }}>
             {product.price_per_day} Kč / день
           </span>
         </div>
@@ -28,8 +28,8 @@ export default function ProductCard({ product, onOpenModal }) {
 
       {/* Content */}
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <h3 className="text-base font-700 leading-snug text-slate-900" style={{ fontWeight: 700 }}>{product.name}</h3>
-        <p className="text-sm text-slate-500 line-clamp-2 flex-1">{product.description}</p>
+        <h3 className="text-base leading-snug" style={{ fontWeight: 700, color: '#f0f6ff' }}>{product.name}</h3>
+        <p className="text-sm line-clamp-2 flex-1" style={{ color: '#7a8fa6' }}>{product.description}</p>
         <div className="mt-2">
           <button
             className="btn-primary w-full text-sm py-2"
