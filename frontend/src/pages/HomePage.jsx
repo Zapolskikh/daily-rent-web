@@ -104,17 +104,16 @@ export default function HomePage() {
           </div>
 
           {/* Right: billboard */}
-          <div className="w-full md:w-80 lg:w-96 shrink-0" style={{
-            background: 'rgba(255,255,255,0.13)',
-            backdropFilter: 'blur(14px)',
-            WebkitBackdropFilter: 'blur(14px)',
-            border: '1px solid rgba(255,255,255,0.24)',
+          <div className="w-full md:w-[420px] lg:w-[480px] shrink-0" style={{
+            background: 'rgba(255,255,255,0.97)',
+            border: '1px solid rgba(255,255,255,0.9)',
             borderRadius: '20px',
-            padding: '24px',
+            padding: '28px 32px',
             minHeight: '200px',
+            boxShadow: '0 8px 40px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.6) inset',
           }}>
             {/* Progress bars */}
-            <div className="flex gap-1.5 mb-5">
+            <div className="flex gap-1.5 mb-6">
               {billboardSlides.map((_, i) => (
                 <button
                   key={i}
@@ -123,7 +122,7 @@ export default function HomePage() {
                     height: '3px',
                     flex: 1,
                     borderRadius: '2px',
-                    background: i === slide ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.28)',
+                    background: i === slide ? '#0d9488' : 'rgba(13,148,136,0.18)',
                     transition: 'background 0.3s',
                     border: 'none',
                     cursor: 'pointer',
@@ -136,16 +135,16 @@ export default function HomePage() {
 
             {/* Slide content */}
             <div key={slide} className="billboard-slide">
-              <div style={{ fontSize: '3rem', lineHeight: 1, marginBottom: '12px' }}>
+              <div style={{ fontSize: '3rem', lineHeight: 1, marginBottom: '14px' }}>
                 {billboardSlides[slide].icon}
               </div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'white', margin: 0 }}>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
                 {billboardSlides[slide].title}
               </h3>
-              <p style={{ fontSize: '0.95rem', color: 'rgba(165,243,252,1)', fontWeight: 600, margin: '4px 0 10px' }}>
+              <p style={{ fontSize: '0.95rem', color: '#0f766e', fontWeight: 600, margin: '5px 0 12px' }}>
                 {billboardSlides[slide].sub}
               </p>
-              <p style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.78)', lineHeight: 1.55, margin: 0 }}>
+              <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.6, margin: 0 }}>
                 {billboardSlides[slide].body}
               </p>
             </div>
