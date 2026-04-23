@@ -114,6 +114,15 @@ html, body {
   @apply badge bg-slate-100 text-slate-600;
 }
 
+/* Billboard slide animation */
+@keyframes billboard-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.billboard-slide {
+  animation: billboard-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 /* react-datepicker overrides */
 .react-datepicker {
   @apply border border-slate-200 rounded-2xl shadow-sm font-sans text-sm;
