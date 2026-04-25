@@ -33,15 +33,23 @@ from models import (
     ProductCreate,
     ProductUpdate,
     ProductsResponse,
+    UserLoginRequest,
+    UserProfileResponse,
+    UserProfileUpdate,
+    UserRegisterRequest,
+    UserTokenResponse,
     utc_now,
 )
 from services.email_service import EmailConfigError, send_cancellation_email, send_contact_email, send_order_email, send_restock_email
 from services.object_storage import ObjectStorageConfigError, save_product_image
 from services.storage import (
+    create_user,
     delete_product_by_id,
     delete_notifications_for_product,
     get_notifications_for_product,
     get_reserved_counts,
+    get_user_by_email,
+    get_user_by_id,
     increment_reservations,
     init_db,
     read_available_dates,
@@ -51,6 +59,7 @@ from services.storage import (
     reserve_if_available,
     save_notification,
     seed_legacy_data_if_empty,
+    update_user,
     upsert_product,
     write_available_dates,
     write_notes,
@@ -134,6 +143,45 @@ def verify_admin(credentials: HTTPAuthorizationCredentials | None = Depends(secu
     if payload.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Forbidden")
     return token
+
+
+# ── User auth helpers ───────────────────────────────────────────────────────────
+
+import bcrypt
+
+user_serializer = URLSafeTimedSerializer(os.getenv("APP_SECRET", "change_me"), salt="user-auth")
+
+
+def _hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+
+def _verify_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode(), hashed.encode())
+
+
+def _make_user_token(user_id: str) -> str:
+    return user_serializer.dumps({"user_id": user_id})
+
+
+def verify_user(credentials: HTTPAuthorizationCredentials | None = Depends(security)) -> str:
+    """Return user_id from a valid bearer token."""
+    if not credentials or credentials.scheme.lower() != "bearer":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    try:
+        payload = user_serializer.loads(credentials.credentials, max_age=60 * 60 * 24 * 7)
+    except SignatureExpired as exc:
+        raise HTTPException(status_code=401, detail="Token expired") from exc
+    except BadSignature as exc:
+        raise HTTPException(status_code=401, detail="Invalid token") from exc
+    uid = payload.get("user_id")
+    if not uid:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return uid
+
+
+def _user_profile(rec) -> UserProfileResponse:
+    return UserProfileResponse(id=rec.id, name=rec.name, email=rec.email, phone=rec.phone, created_at=rec.created_at)
 
 
 def _notify_both(send_email_fn, send_tg_fn, *args) -> None:
@@ -456,6 +504,56 @@ def admin_login(payload: AdminLoginRequest) -> AdminLoginResponse:
     if not secrets.compare_digest(payload.password, admin_password):
         raise HTTPException(status_code=401, detail="Wrong password")
     return AdminLoginResponse(access_token=make_admin_token())
+
+
+# ─── User: register / login / profile ─────────────────────────────────────────
+
+@app.post("/api/user/register", response_model=UserTokenResponse)
+def user_register(payload: UserRegisterRequest) -> UserTokenResponse:
+    import uuid
+    if get_user_by_email(payload.email):
+        raise HTTPException(status_code=409, detail="Email already registered")
+    uid = uuid.uuid4().hex
+    create_user(uid, payload.email, payload.name, payload.phone, _hash_password(payload.password))
+    rec = get_user_by_id(uid)
+    return UserTokenResponse(access_token=_make_user_token(uid), user=_user_profile(rec))
+
+
+@app.post("/api/user/login", response_model=UserTokenResponse)
+def user_login(payload: UserLoginRequest) -> UserTokenResponse:
+    rec = get_user_by_email(payload.email)
+    if not rec or not _verify_password(payload.password, rec.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+    return UserTokenResponse(access_token=_make_user_token(rec.id), user=_user_profile(rec))
+
+
+@app.get("/api/user/profile", response_model=UserProfileResponse)
+def user_profile(user_id: str = Depends(verify_user)) -> UserProfileResponse:
+    rec = get_user_by_id(user_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="User not found")
+    return _user_profile(rec)
+
+
+@app.put("/api/user/profile", response_model=UserProfileResponse)
+def user_profile_update(payload: UserProfileUpdate, user_id: str = Depends(verify_user)) -> UserProfileResponse:
+    fields = {k: v for k, v in payload.model_dump().items() if v is not None}
+    if not fields:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    rec = update_user(user_id, **fields)
+    if not rec:
+        raise HTTPException(status_code=404, detail="User not found")
+    return _user_profile(rec)
+
+
+@app.get("/api/user/orders", response_model=OrdersResponse)
+def user_orders(user_id: str = Depends(verify_user)) -> OrdersResponse:
+    rec = get_user_by_id(user_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="User not found")
+    all_orders = read_orders()
+    my_orders = [o for o in all_orders if o.email == rec.email]
+    return OrdersResponse(orders=my_orders)
 
 
 # ─── Admin: images ────────────────────────────────────────────────────────────

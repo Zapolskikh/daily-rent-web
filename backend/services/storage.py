@@ -83,6 +83,17 @@ class NotificationRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class UserRecord(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    email: Mapped[str] = mapped_column(String(256), nullable=False, unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    phone: Mapped[str] = mapped_column(String(64), nullable=False)
+    password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=_get_engine())
     _migrate_reservations_from_orders()
@@ -443,3 +454,41 @@ def delete_notifications_for_product(product_id: str) -> None:
     with _session() as session:
         session.query(NotificationRecord).filter(NotificationRecord.product_id == product_id).delete()
         session.commit()
+
+
+# ── User helpers ────────────────────────────────────────────────────────────────
+
+def create_user(user_id: str, email: str, name: str, phone: str, password_hash: str) -> None:
+    with _session() as session:
+        session.add(UserRecord(
+            id=user_id, email=email, name=name, phone=phone,
+            password_hash=password_hash,
+            created_at=datetime.now(timezone.utc),
+        ))
+        session.commit()
+
+
+def get_user_by_email(email: str) -> UserRecord | None:
+    with _session() as session:
+        return session.execute(
+            select(UserRecord).where(UserRecord.email == email)
+        ).scalar_one_or_none()
+
+
+def get_user_by_id(user_id: str) -> UserRecord | None:
+    with _session() as session:
+        return session.execute(
+            select(UserRecord).where(UserRecord.id == user_id)
+        ).scalar_one_or_none()
+
+
+def update_user(user_id: str, **fields) -> UserRecord | None:
+    with _session() as session:
+        rec = session.get(UserRecord, user_id)
+        if not rec:
+            return None
+        for k, v in fields.items():
+            setattr(rec, k, v)
+        session.commit()
+        session.refresh(rec)
+        return rec

@@ -7,3 +7,4 @@ pyTelegramBotAPI==4.26.0
 SQLAlchemy==2.0.41
 cloudinary==1.44.1
 asyncpg
+bcrypt==4.2.1

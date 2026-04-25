@@ -200,6 +200,28 @@ export async function notifyAvailability(data) {
   catch { return { message: 'ok' } }
 }
 
+// ── User: auth & profile ───────────────────────────────────────────────────────
+
+export async function userRegister(data) {
+  return request('/api/user/register', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function userLogin(data) {
+  return request('/api/user/login', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function getUserProfile(token) {
+  return request('/api/user/profile', { headers: { Authorization: `Bearer ${token}` } })
+}
+
+export async function updateUserProfile(data, token) {
+  return request('/api/user/profile', { method: 'PUT', body: JSON.stringify(data), headers: { Authorization: `Bearer ${token}` } })
+}
+
+export async function getUserOrders(token) {
+  return request('/api/user/orders', { headers: { Authorization: `Bearer ${token}` } })
+}
+
 // ── Admin: session ─────────────────────────────────────────────────────────────
 
 export async function adminLogin(password) {
