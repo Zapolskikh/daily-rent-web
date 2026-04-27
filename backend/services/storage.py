@@ -106,9 +106,28 @@ def _rebuild_reservations_from_orders(session: Session) -> None:
             for date in order.dates:
                 key = (item.product_id, date)
                 counts[key] = counts.get(key, 0) + 1
-    session.query(ReservationRecord).delete()
-    for (pid, date), cnt in counts.items():
-        session.add(ReservationRecord(product_id=pid, date=date, count=cnt))
+
+    # DELETE first, flush immediately so the SQL is sent before any INSERT
+    session.query(ReservationRecord).delete(synchronize_session=False)
+    session.flush()
+
+    if not counts:
+        return
+
+    records = [
+        {"product_id": pid, "date": date, "count": cnt}
+        for (pid, date), cnt in counts.items()
+    ]
+
+    # Use ON CONFLICT DO NOTHING so concurrent cold-starts don't crash
+    try:
+        from sqlalchemy.dialects.postgresql import insert as _pg_insert
+        stmt = _pg_insert(ReservationRecord).values(records).on_conflict_do_nothing()
+        session.execute(stmt)
+    except ImportError:
+        # SQLite fallback
+        for r in records:
+            session.add(ReservationRecord(**r))
 
 
 def _migrate_reservations_from_orders() -> None:

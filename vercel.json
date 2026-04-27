@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd frontend && npm run build",
+  "buildCommand": "mkdir -p backend/assets && curl -fsSL 'https://cdn.jsdelivr.net/gh/dejavu-fonts/dejavu-fonts@2.37/ttf/DejaVuSans.ttf' -o backend/assets/DejaVuSans.ttf && cd frontend && npm run build",
   "installCommand": "rm -rf node_modules frontend/node_modules && npm install --include=optional",
   "outputDirectory": "dist",
   "env": {
