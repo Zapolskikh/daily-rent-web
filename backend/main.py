@@ -35,7 +35,7 @@ from models import (
     ProductsResponse,
     utc_now,
 )
-from services.email_service import EmailConfigError, send_cancellation_email, send_contact_email, send_order_email, send_restock_email
+from services.email_service import EmailConfigError, send_cancellation_email, send_contact_email, send_invoice_email, send_order_email, send_restock_email
 from services.object_storage import ObjectStorageConfigError, save_product_image
 from services.storage import (
     delete_product_by_id,
@@ -238,6 +238,19 @@ def get_booked_slots() -> dict:
 
 # ─── Orders ───────────────────────────────────────────────────────────────────
 
+def _price_coefficient(days: int) -> float:
+    """Discount coefficient: the longer the rental, the cheaper per day."""
+    if days >= 15:
+        return 0.60
+    if days >= 8:
+        return 0.70
+    if days >= 4:
+        return 0.80
+    if days >= 2:
+        return 0.90
+    return 1.0
+
+
 @app.post("/api/orders", response_model=Order)
 def create_order(payload: OrderCreate) -> Order:
     if payload.dates:
@@ -249,12 +262,13 @@ def create_order(payload: OrderCreate) -> Order:
         error = reserve_if_available(reserve_items, payload.dates)
         if error:
             raise HTTPException(status_code=409, detail=error)
-    # Calculate total
+    # Calculate total with long-rental discount
     total = 0.0
     days = max(len(payload.dates), 1)
+    coeff = _price_coefficient(days)
     for item in payload.items:
         options_total = sum(o.price for o in item.selected_options)
-        total += (item.price_per_day + options_total) * days
+        total += (item.price_per_day + options_total) * coeff * days
     total += payload.delivery_fee
 
     order = Order(
@@ -271,6 +285,13 @@ def create_order(payload: OrderCreate) -> Order:
     write_orders(orders)
 
     _notify_both(send_order_email, send_order_telegram, order)
+
+    # Send invoice PDF to the customer (best-effort; never block the response)
+    try:
+        send_invoice_email(order)
+    except Exception:
+        pass
+
     return order
 
 

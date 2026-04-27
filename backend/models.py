@@ -75,6 +75,7 @@ class OrderCreate(BaseModel):
     delivery_fee: float = Field(default=0, ge=0)
     dates: list[str] = Field(default_factory=list)
     delivery_slot: str | None = Field(default=None, max_length=20)  # e.g. "13:00-14:00"
+    return_slot: str | None = Field(default=None, max_length=40)    # end time or "по договорённости"
     comment: str = Field(default="", max_length=1000)
 
 

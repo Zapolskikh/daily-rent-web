@@ -30,6 +30,37 @@ function buildSpdQr(iban, amount, vs) {
   return `SPD*1.0*ACC:${iban}*AM:${amount}.00*CC:CZK*MSG:Daily Rent Prague*X-VS:${vs}`
 }
 
+// ─── Price tier helpers ────────────────────────────────────────────────────────
+const PRICE_TIERS = [
+  { minDays: 15, coeff: 0.60, label: '-40%', desc: 'от 15 дней' },
+  { minDays: 8,  coeff: 0.70, label: '-30%', desc: '8–14 дней' },
+  { minDays: 4,  coeff: 0.80, label: '-20%', desc: '4–7 дней' },
+  { minDays: 2,  coeff: 0.90, label: '-10%', desc: '2–3 дня' },
+  { minDays: 1,  coeff: 1.00, label:  '',    desc: '1 день' },
+]
+
+function getPriceTier(days) {
+  for (const tier of PRICE_TIERS) {
+    if (days >= tier.minDays) return tier
+  }
+  return PRICE_TIERS[PRICE_TIERS.length - 1]
+}
+
+function getDatesBetween(start, end) {
+  if (!start) return []
+  const endNorm = end || start
+  const dates = []
+  const cur = new Date(start)
+  cur.setHours(0, 0, 0, 0)
+  const fin = new Date(endNorm)
+  fin.setHours(0, 0, 0, 0)
+  while (cur <= fin) {
+    dates.push(cur.toISOString().slice(0, 10))
+    cur.setDate(cur.getDate() + 1)
+  }
+  return dates
+}
+
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false)
   function handleCopy() {
@@ -57,11 +88,13 @@ export default function CartPage() {
   const navigate = useNavigate()
 
   const [deliveryType, setDeliveryType] = useState('delivery')
-  const [selectedDate, setSelectedDate] = useState(null)
+  const [selectedDate, setSelectedDate] = useState(null)    // start date
+  const [endDate, setEndDate] = useState(null)              // end date
   const [availableDates, setAvailableDates] = useState([])   // ['YYYY-MM-DD', ...]
   const [availableSlots, setAvailableSlots] = useState([])   // ['YYYY-MM-DD:HH:MM-HH:MM', ...]
   const [bookedSlots, setBookedSlots] = useState({})         // { 'YYYY-MM-DD': ['HH:MM-HH:MM', ...] }
-  const [selectedSlot, setSelectedSlot] = useState('')
+  const [selectedSlot, setSelectedSlot] = useState('')       // start time
+  const [endSlot, setEndSlot] = useState('')                 // end time
 
   const [form, setForm] = useState({ name: '', email: '', phone: '', comment: '' })
   const [unavailableIds, setUnavailableIds] = useState([])
@@ -90,8 +123,9 @@ export default function CartPage() {
       .catch(() => {})
   }, [])
 
-  // Reset slot when date changes
+  // Reset start slot when start date changes; reset end when start changes
   useEffect(() => { setSelectedSlot('') }, [selectedDate])
+  useEffect(() => { setEndDate(null); setEndSlot('') }, [selectedDate])
 
   if (items.length === 0 && !success) {
     return (
@@ -115,12 +149,18 @@ export default function CartPage() {
   }
 
   const selectedIso = selectedDate ? selectedDate.toISOString().slice(0, 10) : null
+  const endIso      = endDate      ? endDate.toISOString().slice(0, 10)      : null
 
-  // Slots for selected date (strip date prefix)
+  // Slots for start date (strip date prefix)
   const slotsForDate = selectedIso
     ? availableSlots
         .filter(d => d.startsWith(selectedIso + ':'))
         .map(d => d.slice(11))
+    : []
+
+  // Slots for end date
+  const slotsForEndDate = endIso
+    ? availableSlots.filter(d => d.startsWith(endIso + ':')).map(d => d.slice(11))
     : []
 
   // Dates that have ≥1 slot — these are "available" (light green)
@@ -128,10 +168,15 @@ export default function CartPage() {
     availableDates.filter(d => availableSlots.some(s => s.startsWith(d + ':')))
   )
 
-  const days = 1
+  // All dates in the selected range
+  const allDates = getDatesBetween(selectedDate, endDate)
+  const days = allDates.length || 1
+  const priceTier = getPriceTier(days)
+  const coefficient = priceTier.coeff
+
   const itemTotals = items.map((item) => {
     const optTotal = item.selectedOptions.reduce((s, o) => s + o.price, 0)
-    return (item.product.price_per_day + optTotal) * days * item.quantity
+    return Math.round((item.product.price_per_day + optTotal) * coefficient * days * item.quantity)
   })
   const grandTotal = itemTotals.reduce((s, v) => s + v, 0)
 
@@ -156,7 +201,11 @@ export default function CartPage() {
     setUnavailableIds([])
 
     if (!selectedDate) {
-      setSubmitError(deliveryType === 'delivery' ? 'Выберите дату доставки' : 'Выберите дату самовывоза')
+      setSubmitError(deliveryType === 'delivery' ? 'Выберите дату начала доставки' : 'Выберите дату начала самовывоза')
+      return
+    }
+    if (!endDate) {
+      setSubmitError('Выберите дату окончания аренды')
       return
     }
     if (slotsForDate.length > 0 && !selectedSlot) {
@@ -166,7 +215,7 @@ export default function CartPage() {
 
     setLoading(true)
     try {
-      const dates = selectedIso ? [selectedIso] : []
+      const dates = allDates
       const { unavailable_product_ids } = await checkAvailability({
         items: items.map((item) => ({ product_id: item.product.id })),
         dates,
@@ -195,6 +244,7 @@ export default function CartPage() {
         delivery_fee: deliveryFee,
         dates,
         delivery_slot: selectedSlot || null,
+        return_slot: endSlot || (endIso && !slotsForEndDate.length ? 'по договорённости' : null),
       })
 
       clearCart()
@@ -242,7 +292,9 @@ export default function CartPage() {
                     <p className="text-sm text-slate-600">+ {item.selectedOptions.map((o) => o.name).join(', ')}</p>
                   )}
                   <p className="text-sm text-brand font-medium">
-                    {item.product.price_per_day + optTotal} Kč/день × {days} дн. = {(item.product.price_per_day + optTotal) * days} Kč
+                    {item.product.price_per_day + optTotal} Kč/день
+                    {coefficient < 1 && <span className="ml-1 text-green-700 font-semibold">× {coefficient.toFixed(2)}</span>}
+                    {' '}× {days} дн. = {Math.round((item.product.price_per_day + optTotal) * coefficient * days)} Kč
                   </p>
                 </div>
                 <button className="btn-outline text-red-600 shrink-0" onClick={() => removeFromCart(item._key)}>Убрать</button>
@@ -272,6 +324,12 @@ export default function CartPage() {
           )
         })}
         <div className="space-y-1 pt-2 border-t border-slate-200">
+          {priceTier.label && (
+            <div className="flex items-center gap-2 text-sm text-green-700 font-medium mb-1">
+              <span className="rounded-full bg-green-100 border border-green-300 px-2 py-0.5 text-xs font-bold">{priceTier.label}</span>
+              <span>Скидка за длительную аренду ({priceTier.desc})</span>
+            </div>
+          )}
           <div className="flex justify-between items-center">
             <span className="text-slate-600">Аренда ({days} дн.):</span>
             <span>{grandTotal} Kč</span>
@@ -329,15 +387,13 @@ export default function CartPage() {
           </div>
         )}
 
-        {/* Date picker */}
+        {/* Start date picker */}
         <div>
           <h3 className="mb-1 font-medium text-slate-700">
-            {deliveryType === 'delivery' ? 'Дата доставки' : 'Дата самовывоза'}
+            {deliveryType === 'delivery' ? 'Дата начала доставки' : 'Дата начала самовывоза'}
           </h3>
           <p className="mb-3 text-sm text-slate-500">
-            {deliveryType === 'delivery'
-              ? 'Светло-зелёные даты — доступны для доставки. Серые — недоступны.'
-              : 'Светло-зелёные даты — доступны для самовывоза. Серые — недоступны.'}
+            Светло-зелёные даты — доступны. Выберите дату начала аренды.
           </p>
           <div className="datepicker-wrapper">
             <DatePicker
@@ -351,47 +407,108 @@ export default function CartPage() {
           </div>
           {selectedDate && (
             <p className="mt-2 text-sm font-medium text-green-700">
-              Выбрано: {selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+              Начало: {selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           )}
         </div>
 
-        {/* Time slot picker */}
+        {/* Start time slot picker */}
         <div>
-            <h3 className="mb-2 font-medium text-slate-700">
-              {deliveryType === 'delivery' ? 'Время доставки' : 'Время самовывоза'}
-            </h3>
-            {!selectedDate ? (
-              <p className="text-sm text-slate-400">
-                {deliveryType === 'delivery' ? 'Сначала выберите дату доставки выше.' : 'Сначала выберите дату самовывоза выше.'}
-              </p>
-            ) : slotsForDate.length === 0 ? (
-              <p className="text-sm text-slate-400">Для этой даты слоты не настроены — уточните время в комментарии.</p>
+          <h3 className="mb-2 font-medium text-slate-700">
+            {deliveryType === 'delivery' ? 'Время доставки (начало)' : 'Время самовывоза (начало)'}
+          </h3>
+          {!selectedDate ? (
+            <p className="text-sm text-slate-400">Сначала выберите дату начала выше.</p>
+          ) : slotsForDate.length === 0 ? (
+            <p className="text-sm text-slate-400">Для этой даты слоты не настроены — уточните время в комментарии.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {slotsForDate.map((slot) => {
+                const h = parseInt(slot.split(':')[0], 10)
+                const isSelected = selectedSlot === slot
+                const isBooked = (bookedSlots[selectedIso] || []).includes(slot)
+                return (
+                  <button key={slot} type="button"
+                    disabled={isBooked}
+                    onClick={() => !isBooked && setSelectedSlot(isSelected ? '' : slot)}
+                    title={isBooked ? 'Слот уже занят' : ''}
+                    className={`px-4 py-2 rounded-xl border text-sm font-medium transition
+                      ${isBooked
+                        ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through'
+                        : isSelected
+                          ? 'bg-green-700 text-white border-green-700'
+                          : 'bg-green-50 text-green-800 border-green-200 hover:bg-green-100 hover:border-green-400'}`}>
+                    {h}:00 – {h + 1}:00
+                    {isBooked && <span className="ml-1 text-xs">✕</span>}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* End date picker (any date >= startDate) */}
+        <div>
+          <h3 className="mb-1 font-medium text-slate-700">Дата окончания аренды</h3>
+          <p className="mb-3 text-sm text-slate-500">
+            Любая дата ≥ даты начала. Если дата недоступна — время возврата будет по договорённости.
+          </p>
+          {!selectedDate ? (
+            <p className="text-sm text-slate-400">Сначала выберите дату начала выше.</p>
+          ) : (
+            <>
+              <div className="datepicker-wrapper">
+                <DatePicker
+                  locale="ru"
+                  inline
+                  selected={endDate}
+                  onChange={(date) => { setEndDate(date); setEndSlot('') }}
+                  minDate={selectedDate}
+                  dayClassName={(date) => {
+                    const iso = date.toISOString().slice(0, 10)
+                    return datesWithSlots.has(iso) ? 'datepicker-available' : undefined
+                  }}
+                />
+              </div>
+              {endDate && (
+                <p className="mt-2 text-sm font-medium text-green-700">
+                  Конец: {endDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {days > 1 && <span className="ml-2 text-slate-500">({days} дн.)</span>}
+                  {priceTier.label && <span className="ml-2 rounded-full bg-green-100 border border-green-300 px-2 py-0.5 text-xs font-bold text-green-700">{priceTier.label}</span>}
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* End time slot picker */}
+        {endDate && (
+          <div>
+            <h3 className="mb-2 font-medium text-slate-700">Время окончания аренды</h3>
+            {slotsForEndDate.length === 0 ? (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
+                ⏰ Для этой даты нет настроенных слотов — время возврата согласуем дополнительно.
+              </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {slotsForDate.map((slot) => {
+                {slotsForEndDate.map((slot) => {
                   const h = parseInt(slot.split(':')[0], 10)
-                  const isSelected = selectedSlot === slot
-                  const isBooked = (bookedSlots[selectedIso] || []).includes(slot)
+                  const isSelected = endSlot === slot
                   return (
                     <button key={slot} type="button"
-                      disabled={isBooked}
-                      onClick={() => !isBooked && setSelectedSlot(isSelected ? '' : slot)}
-                      title={isBooked ? 'Слот уже занят' : ''}
+                      onClick={() => setEndSlot(isSelected ? '' : slot)}
                       className={`px-4 py-2 rounded-xl border text-sm font-medium transition
-                        ${isBooked
-                          ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through'
-                          : isSelected
-                            ? 'bg-green-700 text-white border-green-700'
-                            : 'bg-green-50 text-green-800 border-green-200 hover:bg-green-100 hover:border-green-400'}`}>
+                        ${isSelected
+                          ? 'bg-green-700 text-white border-green-700'
+                          : 'bg-green-50 text-green-800 border-green-200 hover:bg-green-100 hover:border-green-400'}`}>
                       {h}:00 – {h + 1}:00
-                      {isBooked && <span className="ml-1 text-xs">✕</span>}
                     </button>
                   )
                 })}
               </div>
             )}
-        </div>
+          </div>
+        )}
       </section>
 
       {/* Payment method */}

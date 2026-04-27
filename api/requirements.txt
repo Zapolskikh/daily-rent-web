@@ -7,3 +7,4 @@ pyTelegramBotAPI
 SQLAlchemy
 psycopg2-binary
 cloudinary
+fpdf2>=2.8.3
