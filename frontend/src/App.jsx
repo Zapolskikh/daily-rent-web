@@ -6,6 +6,7 @@ import AdminPage from './pages/AdminPage'
 import DeliveryTermsPage from './pages/DeliveryTermsPage'
 import CartPage from './pages/CartPage'
 import ContactPage from './pages/ContactPage'
+import CookieBanner from './components/CookieBanner'
 
 function CartIcon() {
   const { totalCount } = useCart()
@@ -83,6 +84,7 @@ export default function App() {
   return (
     <CartProvider>
       <Layout />
+      <CookieBanner />
     </CartProvider>
   )
 }
