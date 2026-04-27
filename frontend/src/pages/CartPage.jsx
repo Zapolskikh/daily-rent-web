@@ -1,12 +1,45 @@
 import DatePicker, { registerLocale } from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { useEffect, useRef, useState } from 'react'
+import QRCode from 'react-qr-code'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { checkAvailability, createOrder, getAvailableDates, getBookedSlots, notifyAvailability } from '../lib/api'
 import { ru } from 'date-fns/locale/ru'
 
 registerLocale('ru', ru)
+
+const BANK_IBAN  = import.meta.env.VITE_BANK_IBAN
+const BANK_BIC   = import.meta.env.VITE_BANK_BIC
+const BANK_NAME  = import.meta.env.VITE_BANK_NAME
+
+const CRYPTO_USDT = import.meta.env.VITE_CRYPTO_USDT
+
+function buildSpdQr(iban, amount, vs) {
+  return `SPD*1.0*ACC:${iban}*AM:${amount}.00*CC:CZK*MSG:Daily Rent Prague*X-VS:${vs}`
+}
+
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false)
+  function handleCopy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="ml-2 shrink-0 rounded-lg px-2 py-0.5 text-xs font-medium border transition"
+      style={copied
+        ? { background: '#dcfce7', borderColor: '#86efac', color: '#15803d' }
+        : { background: '#f1f5f9', borderColor: '#cbd5e1', color: '#475569' }}
+    >
+      {copied ? '✓ Скопировано' : 'Копировать'}
+    </button>
+  )
+}
 
 export default function CartPage() {
   const { items, removeFromCart, clearCart } = useCart()
@@ -30,6 +63,7 @@ export default function CartPage() {
   const [paymentMethod, setPaymentMethod] = useState('cash') // 'cash' | 'card' | 'transfer' | 'crypto'
   const [depositMethod, setDepositMethod] = useState('same') // 'same' | 'cash'
   const [paymentStub, setPaymentStub] = useState(false)
+  const [orderVs] = useState(() => String(Date.now()).slice(-10))
   const formRef = useRef(null)
 
   useEffect(() => {
@@ -401,23 +435,21 @@ export default function CartPage() {
           {submitError && <p className="text-sm text-red-600">{submitError}</p>}
           <div className="flex gap-3">
             <button type="button" className="btn-outline flex-1" onClick={() => navigate('/')}>Отмена</button>
-            {paymentMethod === 'cash' ? (
-              <button type="submit" className="btn-primary flex-1" disabled={loading || unavailableIds.length > 0}>
-                {loading ? 'Проверка...' : `Оформить заказ — ${totalWithFee} Kč`}
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn-primary flex-1"
-                disabled={loading || unavailableIds.length > 0}
-                onClick={() => {
-                  if (formRef.current?.checkValidity()) setPaymentStub(true)
-                  else formRef.current?.reportValidity()
-                }}
-              >
-                {loading ? 'Проверка...' : `Перейти к оплате — ${totalWithFee} Kč`}
-              </button>
-            )}
+            <button
+              type="button"
+              className="btn-primary flex-1"
+              disabled={loading || unavailableIds.length > 0}
+              onClick={() => {
+                if (formRef.current?.checkValidity()) setPaymentStub(true)
+                else formRef.current?.reportValidity()
+              }}
+            >
+              {loading ? 'Проверка...' : (
+                paymentMethod === 'cash'
+                  ? `Оформить заказ — ${totalWithFee} Kč`
+                  : `Перейти к оплате — ${totalWithFee} Kč`
+              )}
+            </button>
           </div>
         </form>
       </section>
@@ -450,45 +482,175 @@ export default function CartPage() {
         </div>
       )}
 
-      {/* Payment stub modal */}
+      {/* Payment modal */}
       {paymentStub && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-xl">
-            <div className="text-center">
-              <p className="text-4xl mb-2">
-                {paymentMethod === 'card' ? '💳' : paymentMethod === 'transfer' ? '🏦' : '₿'}
-              </p>
-              <h2 className="text-xl font-bold text-slate-800">
-                {paymentMethod === 'card' && 'Оплата картой'}
-                {paymentMethod === 'transfer' && 'Банковский перевод'}
-                {paymentMethod === 'crypto' && 'Оплата криптовалютой'}
-              </h2>
-              <p className="mt-2 text-slate-600 font-semibold text-2xl">{totalWithFee} Kč</p>
-              {deliveryFee > 0 && (
-                <p className="text-xs text-slate-400">аренда {grandTotal} + доставка {deliveryFee} Kč</p>
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-sm w-full my-8 shadow-2xl overflow-hidden">
+
+            {/* ── Header strip ── */}
+            <div style={{ background: 'linear-gradient(135deg, #0a3d1f, #1a8c3f)' }} className="px-6 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-white/70 text-xs uppercase tracking-widest font-medium">
+                  {paymentMethod === 'cash'     && 'Оплата наличными'}
+                  {paymentMethod === 'transfer' && 'QR platba · перевод'}
+                  {paymentMethod === 'crypto'   && 'Крипто-оплата'}
+                  {paymentMethod === 'card'     && 'Оплата картой'}
+                </p>
+                <p className="text-white text-2xl font-bold mt-0.5">{totalWithFee} Kč</p>
+                {deliveryFee > 0 && (
+                  <p className="text-white/60 text-xs">аренда {grandTotal} + доставка {deliveryFee} Kč</p>
+                )}
+              </div>
+              <button onClick={() => setPaymentStub(false)}
+                className="text-white/60 hover:text-white text-2xl leading-none transition">✕</button>
+            </div>
+
+            <div className="p-6 space-y-4">
+
+              {/* ════ НАЛИЧНЫЕ ════ */}
+              {paymentMethod === 'cash' && (
+                <>
+                  <div className="rounded-xl bg-green-50 border border-green-200 p-4 space-y-3 text-sm">
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl">💵</span>
+                      <div>
+                        <p className="font-semibold text-slate-800">Оплата при передаче оборудования</p>
+                        <p className="text-slate-500 text-xs mt-0.5">Подготовьте точную сумму наличными чешскими кронами</p>
+                      </div>
+                    </div>
+                    <div className="border-t border-green-200 pt-3 space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">К оплате</span>
+                        <span className="font-bold text-green-700 text-base">{totalWithFee} Kč</span>
+                      </div>
+                      {deliveryFee > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-400">в т.ч. доставка</span>
+                          <span className="text-slate-500">{deliveryFee} Kč</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 space-y-1.5 text-xs text-amber-800">
+                    <p className="font-semibold">Залог возвращается</p>
+                    <p>Залог принимается и возвращается наличными при сдаче оборудования в полной комплектности без повреждений.</p>
+                  </div>
+                  <button
+                    className="btn-primary w-full"
+                    onClick={() => { setPaymentStub(false); formRef.current?.requestSubmit() }}
+                  >
+                    Подтвердить заказ
+                  </button>
+                </>
               )}
-              <div className="mt-3 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-700">
-                ⚠ Тестовый режим — реальная оплата не производится
-              </div>
-            </div>
-            <div className="rounded-xl border border-slate-200 p-4 space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="col-span-2 h-10 rounded-lg bg-slate-100 animate-pulse" />
-                <div className="h-10 rounded-lg bg-slate-100 animate-pulse" />
-                <div className="h-10 rounded-lg bg-slate-100 animate-pulse" />
-              </div>
-              <p className="text-center text-xs text-slate-400">Форма оплаты появится здесь</p>
-            </div>
-            <div className="grid gap-2">
-              <button
-                className="btn-primary w-full"
-                onClick={() => { setPaymentStub(false); formRef.current?.requestSubmit() }}
-              >
-                Оплатить {totalWithFee} Kč (тест)
-              </button>
-              <button className="btn-outline w-full" onClick={() => setPaymentStub(false)}>
-                Отмена
-              </button>
+
+              {/* ════ БАНКОВСКИЙ ПЕРЕВОД / QR PLATBA ════ */}
+              {paymentMethod === 'transfer' && (
+                <>
+                  {/* Tabs */}
+                  <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+                    <span className="text-center text-xs font-semibold py-1.5 rounded-lg bg-white shadow-sm text-green-800">QR код</span>
+                    <span className="text-center text-xs font-medium py-1.5 text-slate-400">Реквизиты ниже</span>
+                  </div>
+
+                  {/* QR */}
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="p-3 bg-white border-2 border-green-200 rounded-2xl shadow-sm">
+                      <QRCode
+                        value={buildSpdQr(BANK_IBAN, totalWithFee, orderVs)}
+                        size={190}
+                        fgColor="#0a3d1f"
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400 text-center">Отсканируйте в банковском приложении<br/>(Česká spořitelna, ČSOB, Raiffeisenbank и др.)</p>
+                  </div>
+
+                  {/* Manual details */}
+                  <div className="rounded-xl bg-green-50 border border-green-200 divide-y divide-green-200 text-sm overflow-hidden">
+                    {[
+                      { label: 'Получатель', value: BANK_NAME, mono: false },
+                      { label: 'IBAN',        value: BANK_IBAN, mono: true },
+                      { label: 'BIC / SWIFT', value: BANK_BIC,  mono: true },
+                      { label: 'Сумма',       value: `${totalWithFee} Kč`, mono: false, bold: true },
+                      { label: 'Variabilní symbol', value: orderVs, mono: true, bold: true, highlight: true },
+                    ].map(({ label, value, mono, bold, highlight }) => (
+                      <div key={label} className={`flex items-center justify-between gap-2 px-3 py-2.5 ${highlight ? 'bg-green-100' : ''}`}>
+                        <span className="text-slate-500 shrink-0">{label}</span>
+                        <div className="flex items-center gap-1 min-w-0">
+                          <span className={`${mono ? 'font-mono text-xs' : ''} ${bold ? 'font-bold text-green-800' : 'text-slate-800'} truncate`}>{value}</span>
+                          <CopyButton text={value} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                    ⚠ Обязательно укажите <strong>variabilní symbol {orderVs}</strong> — по нему мы идентифицируем ваш платёж.
+                  </div>
+
+                  <button
+                    className="btn-primary w-full"
+                    onClick={() => { setPaymentStub(false); formRef.current?.requestSubmit() }}
+                  >
+                    Я оплатил — оформить заказ
+                  </button>
+                </>
+              )}
+
+              {/* ════ КРИПТА ════ */}
+              {paymentMethod === 'crypto' && (
+                <>
+                  <p className="text-sm text-slate-500 text-center">
+                    Переведите сумму, эквивалентную <strong className="text-slate-800">{totalWithFee} Kč</strong>, на кошелёк USDT TRC-20.
+                    После оплаты нажмите «Я оплатил».
+                  </p>
+
+                  {/* USDT */}
+                  <div className="rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="bg-indigo-700 px-4 py-2 flex items-center gap-2">
+                      <span className="text-white text-lg font-bold">₮</span>
+                      <span className="text-white text-sm font-semibold">USDT ERC-20 (Ethereum)</span>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <div className="flex justify-center">
+                        <div className="p-2 bg-white border border-slate-200 rounded-xl">
+                          <QRCode value={CRYPTO_USDT} size={150} fgColor="#3730a3" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
+                        <span className="font-mono text-xs text-slate-600 truncate flex-1 select-all">{CRYPTO_USDT}</span>
+                        <CopyButton text={CRYPTO_USDT} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                    ⚠ Курс рассчитывается на момент поступления платежа. Укажите в комментарии транзакции ваш email или номер заказа.
+                  </div>
+
+                  <button
+                    className="btn-primary w-full"
+                    onClick={() => { setPaymentStub(false); formRef.current?.requestSubmit() }}
+                  >
+                    Я оплатил — оформить заказ
+                  </button>
+                </>
+              )}
+
+              {/* ════ КАРТА (заглушка) ════ */}
+              {paymentMethod === 'card' && (
+                <>
+                  <div className="text-center py-4">
+                    <p className="text-5xl mb-3">💳</p>
+                    <p className="text-slate-600 text-sm">Онлайн-оплата картой находится в разработке.</p>
+                    <p className="text-slate-500 text-xs mt-1">Пока воспользуйтесь QR-переводом или наличными.</p>
+                  </div>
+                  <button className="btn-outline w-full" onClick={() => setPaymentStub(false)}>
+                    Назад к выбору оплаты
+                  </button>
+                </>
+              )}
+
             </div>
           </div>
         </div>
