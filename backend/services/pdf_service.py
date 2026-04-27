@@ -1,14 +1,14 @@
 """PDF invoice generator for Rent Prague orders.
 
-Uses fpdf2 (https://py-pdf.github.io/fpdf2/) with a Cyrillic-capable font.
-The font (DejaVuSans.ttf) is resolved from common system paths, a local
-assets/ directory, or downloaded once to /tmp on first use.
+Font strategy (in priority order):
+  1. backend/assets/DejaVuSans.ttf  — commit this file for proper Cyrillic
+  2. Common system paths for DejaVuSans
+  3. Built-in Helvetica (core font) + Cyrillic transliteration fallback
 """
 
 from __future__ import annotations
 
 import os
-import urllib.request
 from datetime import datetime
 from pathlib import Path
 
@@ -18,57 +18,98 @@ from models import Order
 
 # ─── Font resolution ──────────────────────────────────────────────────────────
 
-_FONT_CACHE = Path("/tmp/RentPrague_DejaVuSans.ttf")
-# jsDelivr CDN mirror — more reliable from serverless than direct GitHub raw
-_FONT_URL = (
-    "https://cdn.jsdelivr.net/gh/dejavu-fonts/dejavu-fonts@2.37/ttf/DejaVuSans.ttf"
-)
-_FONT_URL_FALLBACK = (
-    "https://github.com/dejavu-fonts/dejavu-fonts/raw/version_2_37/ttf/DejaVuSans.ttf"
-)
 _SYSTEM_FONT_PATHS = [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans.ttf",
     "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans.ttf",
-    "/System/Library/Fonts/Helvetica.ttc",
 ]
 _LOCAL_FONT = Path(__file__).resolve().parent.parent / "assets" / "DejaVuSans.ttf"
 
-_resolved_font_path: str | None = None  # module-level cache to avoid repeated I/O
+_resolved_font_path: str | None = None   # module-level cache
+_USE_CORE_FONT: bool = False              # True when falling back to Helvetica
 
 
-def _resolve_font() -> str:
-    """Return path to a TTF font file that supports Cyrillic."""
-    global _resolved_font_path
+def _resolve_font() -> str | None:
+    """Return TTF path if available, else None (caller uses core font fallback)."""
+    global _resolved_font_path, _USE_CORE_FONT
+    if _USE_CORE_FONT:
+        return None
     if _resolved_font_path and Path(_resolved_font_path).exists():
         return _resolved_font_path
-
     if _LOCAL_FONT.exists():
         _resolved_font_path = str(_LOCAL_FONT)
         return _resolved_font_path
-
     for p in _SYSTEM_FONT_PATHS:
         if Path(p).exists():
             _resolved_font_path = p
             return _resolved_font_path
+    # No TTF found — fall back to built-in Helvetica for this process lifetime
+    _USE_CORE_FONT = True
+    return None
 
-    if _FONT_CACHE.exists():
-        _resolved_font_path = str(_FONT_CACHE)
-        return _resolved_font_path
 
-    # Download to /tmp — try primary CDN, then fallback
-    for url in (_FONT_URL, _FONT_URL_FALLBACK):
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "rent-prague/1.0"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                _FONT_CACHE.write_bytes(resp.read())
-            _resolved_font_path = str(_FONT_CACHE)
-            return _resolved_font_path
-        except Exception:
-            continue
+# ─── Cyrillic → Latin transliteration (used only with core-font fallback) ────
 
-    raise RuntimeError("Could not resolve a TTF font for PDF generation")
+_CYR_MAP: list[tuple[str, str]] = [
+    ("Щ", "Sch"), ("щ", "sch"),
+    ("Ш", "Sh"),  ("ш", "sh"),
+    ("Ч", "Ch"),  ("ч", "ch"),
+    ("Ю", "Yu"),  ("ю", "yu"),
+    ("Я", "Ya"),  ("я", "ya"),
+    ("Ж", "Zh"),  ("ж", "zh"),
+    ("Ё", "Yo"),  ("ё", "yo"),
+    ("Э", "E"),   ("э", "e"),
+    ("Ъ", ""),    ("ъ", ""),
+    ("Ь", ""),    ("ь", ""),
+    ("А", "A"),   ("а", "a"),
+    ("Б", "B"),   ("б", "b"),
+    ("В", "V"),   ("в", "v"),
+    ("Г", "G"),   ("г", "g"),
+    ("Д", "D"),   ("д", "d"),
+    ("Е", "E"),   ("е", "e"),
+    ("З", "Z"),   ("з", "z"),
+    ("И", "I"),   ("и", "i"),
+    ("Й", "Y"),   ("й", "y"),
+    ("К", "K"),   ("к", "k"),
+    ("Л", "L"),   ("л", "l"),
+    ("М", "M"),   ("м", "m"),
+    ("Н", "N"),   ("н", "n"),
+    ("О", "O"),   ("о", "o"),
+    ("П", "P"),   ("п", "p"),
+    ("Р", "R"),   ("р", "r"),
+    ("С", "S"),   ("с", "s"),
+    ("Т", "T"),   ("т", "t"),
+    ("У", "U"),   ("у", "u"),
+    ("Ф", "F"),   ("ф", "f"),
+    ("Х", "Kh"),  ("х", "kh"),
+    ("Ц", "Ts"),  ("ц", "ts"),
+    ("Ы", "Y"),   ("ы", "y"),
+]
+
+
+def _t(text: str) -> str:
+    """Transliterate Cyrillic to Latin and replace non-latin-1 chars when core font is active."""
+    if not _USE_CORE_FONT:
+        return text
+    for cyr, lat in _CYR_MAP:
+        text = text.replace(cyr, lat)
+    # Replace common non-latin-1 symbols with ASCII equivalents
+    text = (text
+            .replace("•", "-")
+            .replace("—", "-")
+            .replace("–", "-")
+            .replace("\u2116", "No.")  # №
+            .replace("ě", "e").replace("é", "e").replace("á", "a").replace("í", "i")
+            .replace("ú", "u").replace("ů", "u").replace("ó", "o").replace("ý", "y")
+            .replace("č", "c").replace("ř", "r").replace("ž", "z").replace("š", "s")
+            .replace("ď", "d").replace("ť", "t").replace("ň", "n")
+            .replace("Č", "C").replace("Ř", "R").replace("Ž", "Z").replace("Š", "S")
+            .replace("Á", "A").replace("É", "E").replace("Í", "I").replace("Ó", "O")
+            .replace("Ú", "U").replace("Ý", "Y")
+            )
+    return text
+
 
 
 # ─── Company info (configurable via env) ──────────────────────────────────────
@@ -132,7 +173,7 @@ def _fmt_date(d: str) -> str:
 
 
 def _fmt_price(amount: float) -> str:
-    return f"{amount:,.0f} Kč".replace(",", " ")
+    return _t(f"{amount:,.0f} Kč".replace(",", " "))
 
 
 # ─── PDF class ────────────────────────────────────────────────────────────────
@@ -141,17 +182,23 @@ class _InvoicePDF(FPDF):
     _font_regular: str = "Regular"
     _font_bold: str = "Bold"
 
-    def __init__(self, font_path: str) -> None:
+    def __init__(self, font_path: str | None) -> None:
         super().__init__(orientation="P", unit="mm", format="A4")
         self.set_margins(left=20, top=20, right=20)
         self.set_auto_page_break(auto=True, margin=20)
-        # Register DejaVuSans (Regular) and Bold variant if available
-        bold_path = font_path.replace("DejaVuSans.ttf", "DejaVuSans-Bold.ttf")
-        self.add_font(self._font_regular, "", font_path)
-        if Path(bold_path).exists():
-            self.add_font(self._font_bold, "", bold_path)
+
+        if font_path:
+            # TTF font with full Unicode / Cyrillic support
+            bold_path = font_path.replace("DejaVuSans.ttf", "DejaVuSans-Bold.ttf")
+            self.add_font(self._font_regular, "", font_path)
+            if Path(bold_path).exists():
+                self.add_font(self._font_bold, "", bold_path)
+            else:
+                self._font_bold = self._font_regular
         else:
-            self._font_bold = self._font_regular  # fallback: use regular for bold
+            # Built-in core font fallback (latin only; Cyrillic is transliterated)
+            self._font_regular = "helvetica"
+            self._font_bold = "helvetica"
 
     # ── Header ──────────────────────────────────────────────────────────────
 
@@ -166,7 +213,7 @@ class _InvoicePDF(FPDF):
         self.set_text_color(150, 150, 150)
         self.cell(
             0, 6,
-            f"{_company_name()} — {_company_website()}  |  стр. {self.page_no()}",
+            _t(f"{_company_name()} — {_company_website()}  |  стр. {self.page_no()}"),
             align="C",
         )
         self.set_text_color(0, 0, 0)
@@ -174,15 +221,21 @@ class _InvoicePDF(FPDF):
     # ── Convenience wrappers ────────────────────────────────────────────────
 
     def bold(self, size: int = 10) -> None:
-        self.set_font(self._font_bold, size=size)
+        if self._font_bold == "helvetica":
+            self.set_font("helvetica", style="B", size=size)
+        else:
+            self.set_font(self._font_bold, size=size)
 
     def regular(self, size: int = 10) -> None:
-        self.set_font(self._font_regular, size=size)
+        if self._font_regular == "helvetica":
+            self.set_font("helvetica", style="", size=size)
+        else:
+            self.set_font(self._font_regular, size=size)
 
     def section_title(self, text: str) -> None:
         self.set_fill_color(245, 245, 245)
         self.bold(9)
-        self.cell(0, 7, text, fill=True, new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 7, _t(text), fill=True, new_x="LMARGIN", new_y="NEXT")
         self.ln(1)
         self.regular()
 
@@ -206,7 +259,7 @@ def generate_invoice_pdf(order: Order) -> bytes:
     pdf.cell(PAGE_W, 14, _company_name().upper(), fill=True, align="C",
              new_x="LMARGIN", new_y="NEXT")
     pdf.regular(9)
-    tagline = f"{_company_address()}  •  {_company_email()}"
+    tagline = _t(f"{_company_address()}  •  {_company_email()}")
     pdf.cell(PAGE_W, 6, tagline, fill=True, align="C",
              new_x="LMARGIN", new_y="NEXT")
     pdf.set_fill_color(255, 255, 255)
@@ -217,27 +270,27 @@ def generate_invoice_pdf(order: Order) -> bytes:
     # Left column — invoice details
     pdf.set_x(pdf.l_margin)
     pdf.bold(13)
-    pdf.cell(COL, 8, "ИНВОЙС / INVOICE", new_x="RIGHT", new_y="TOP")
+    pdf.cell(COL, 8, _t("ИНВОЙС / INVOICE"), new_x="RIGHT", new_y="TOP")
 
     # Right column — customer label
     pdf.set_x(pdf.l_margin + COL + 6)
     pdf.bold(9)
     pdf.set_text_color(100, 100, 100)
-    pdf.cell(COL, 8, "КЛИЕНТ / ZÁKAZNÍK", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(COL, 8, _t("КЛИЕНТ / ZÁKAZNÍK"), new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(0, 0, 0)
 
     invoice_date = order.created_at.strftime("%d.%m.%Y")
 
     left_rows = [
-        ("№", f"INV-{order.id}"),
-        ("Дата / Datum", invoice_date),
-        ("Статус", "Подтверждён / Potvrzeno"),
+        (_t("№"), f"INV-{order.id}"),
+        (_t("Дата / Datum"), invoice_date),
+        (_t("Статус"), _t("Подтверждён / Potvrzeno")),
     ]
     if _company_ico():
-        left_rows.append(("IČO", _company_ico()))
+        left_rows.append((_t("IČO"), _company_ico()))
 
     right_rows = [
-        (order.name, ""),
+        (_t(order.name), ""),
         (order.email, ""),
         (order.phone, ""),
     ]
@@ -276,10 +329,10 @@ def generate_invoice_pdf(order: Order) -> bytes:
         start = _fmt_date(sorted_dates[0])
         end = _fmt_date(sorted_dates[-1])
         days = len(order.dates)
-        period_str = f"{start} — {end}  ({days} {'день' if days == 1 else 'дней'})"
+        period_str = f"{start} — {end}  ({days} {_t('день' if days == 1 else 'дней')})"
         pdf.regular(9)
         pdf.set_text_color(80, 80, 80)
-        pdf.cell(0, 6, f"Период аренды / Období pronájmu:  {period_str}",
+        pdf.cell(0, 6, _t(f"Период аренды / Období pronájmu:  {period_str}"),
                  new_x="LMARGIN", new_y="NEXT")
         pdf.set_text_color(0, 0, 0)
         pdf.ln(3)
@@ -297,10 +350,10 @@ def generate_invoice_pdf(order: Order) -> bytes:
     pdf.set_fill_color(30, 58, 138)
     pdf.set_text_color(255, 255, 255)
     pdf.bold(8)
-    pdf.cell(C_DESC,  7, "Описание / Popis",       fill=True, border=0)
-    pdf.cell(C_DAYS,  7, "Дни",                    fill=True, border=0, align="C")
-    pdf.cell(C_UNIT,  7, "Цена/день",              fill=True, border=0, align="R")
-    pdf.cell(C_TOTAL, 7, "Итого",                  fill=True, border=0, align="R",
+    pdf.cell(C_DESC,  7, _t("Описание / Popis"),       fill=True, border=0)
+    pdf.cell(C_DAYS,  7, _t("Дни"),                    fill=True, border=0, align="C")
+    pdf.cell(C_UNIT,  7, _t("Цена/день"),              fill=True, border=0, align="R")
+    pdf.cell(C_TOTAL, 7, _t("Итого"),                  fill=True, border=0, align="R",
              new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(0, 0, 0)
 
@@ -314,7 +367,7 @@ def generate_invoice_pdf(order: Order) -> bytes:
 
         pdf.set_fill_color(248, 249, 252) if row_fill else pdf.set_fill_color(255, 255, 255)
         pdf.regular(8)
-        pdf.cell(C_DESC,  6, item.product_name,       fill=True, border=0)
+        pdf.cell(C_DESC,  6, _t(item.product_name),       fill=True, border=0)
         pdf.cell(C_DAYS,  6, str(days_count),         fill=True, border=0, align="C")
         pdf.cell(C_UNIT,  6, _fmt_price(item.price_per_day),  fill=True, border=0, align="R")
         pdf.cell(C_TOTAL, 6, _fmt_price(item_base_total),     fill=True, border=0, align="R",
@@ -327,7 +380,7 @@ def generate_invoice_pdf(order: Order) -> bytes:
             pdf.set_fill_color(248, 249, 252) if row_fill else pdf.set_fill_color(255, 255, 255)
             pdf.set_text_color(80, 80, 80)
             pdf.regular(7)
-            pdf.cell(C_DESC,  5, f"  + {opt.name}",          fill=True, border=0)
+            pdf.cell(C_DESC,  5, _t(f"  + {opt.name}"),          fill=True, border=0)
             pdf.cell(C_DAYS,  5, str(days_count),             fill=True, border=0, align="C")
             pdf.cell(C_UNIT,  5, _fmt_price(opt.price),       fill=True, border=0, align="R")
             pdf.cell(C_TOTAL, 5, _fmt_price(opt_total),       fill=True, border=0, align="R",
@@ -354,17 +407,17 @@ def generate_invoice_pdf(order: Order) -> bytes:
             pdf.regular(8)
         w_label = C_UNIT
         w_value = C_TOTAL
-        pdf.cell(w_label, 7, label, fill=True, border=0, align="R")
+        pdf.cell(w_label, 7, _t(label), fill=True, border=0, align="R")
         pdf.cell(w_value, 7, _fmt_price(amount), fill=True, border=0, align="R",
                  new_x="LMARGIN", new_y="NEXT")
         if highlight:
             pdf.set_text_color(0, 0, 0)
 
-    _total_row("Аренда:", rental_subtotal)
+    _total_row(_t("Аренда:"), rental_subtotal)
     if order.delivery_fee:
-        delivery_label = _DELIVERY_LABELS.get(order.delivery_type, "Доставка")
-        _total_row(f"{delivery_label}:", order.delivery_fee)
-    _total_row("ИТОГО / CELKEM:", order.total_price, bold=True, highlight=True)
+        delivery_label = _DELIVERY_LABELS.get(order.delivery_type, _t("Доставка"))
+        _total_row(_t(f"{delivery_label}:"), order.delivery_fee)
+    _total_row(_t("ИТОГО / CELKEM:"), order.total_price, bold=True, highlight=True)
 
     pdf.ln(6)
 
@@ -372,16 +425,16 @@ def generate_invoice_pdf(order: Order) -> bytes:
     pdf.section_title("ДЕТАЛИ ЗАКАЗА / PODROBNOSTI OBJEDNÁVKY")
 
     detail_rows: list[tuple[str, str]] = [
-        ("Получение / Vyzvednutí", _DELIVERY_LABELS.get(order.delivery_type, order.delivery_type)),
-        ("Возврат / Vrácení",      _RETURN_LABELS.get(order.return_type, order.return_type)),
-        ("Оплата / Platba",        _PAYMENT_LABELS.get(order.payment_method, order.payment_method)),
+        (_t("Получение / Vyzvednutí"), _t(_DELIVERY_LABELS.get(order.delivery_type, order.delivery_type))),
+        (_t("Возврат / Vrácení"),      _t(_RETURN_LABELS.get(order.return_type, order.return_type))),
+        (_t("Оплата / Platba"),        _t(_PAYMENT_LABELS.get(order.payment_method, order.payment_method))),
     ]
     if order.delivery_slot:
-        detail_rows.append(("Начало аренды / Začátek", order.delivery_slot))
+        detail_rows.append((_t("Начало аренды / Začátek"), _t(order.delivery_slot)))
     if getattr(order, 'return_slot', None):
-        detail_rows.append(("Конец аренды / Konec", order.return_slot))
+        detail_rows.append((_t("Конец аренды / Konec"), _t(order.return_slot)))
     if order.comment:
-        detail_rows.append(("Комментарий / Poznámka", order.comment))
+        detail_rows.append((_t("Комментарий / Poznámka"), _t(order.comment)))
 
     for label, value in detail_rows:
         pdf.set_x(pdf.l_margin)
@@ -401,9 +454,9 @@ def generate_invoice_pdf(order: Order) -> bytes:
     pdf.regular(9)
     pdf.multi_cell(
         PAGE_W, 6,
-        "Спасибо, что выбрали Rent Prague! Если у вас возникнут вопросы, "
-        "свяжитесь с нами по адресу " + _company_email() + ".\n"
-        "Děkujeme, že jste si vybrali Rent Prague!",
+        _t("Спасибо, что выбрали Rent Prague! Если у вас возникнут вопросы, "
+        f"свяжитесь с нами по адресу {_company_email()}.\n"
+        "Děkujeme, že jste si vybrali Rent Prague!"),
         border=1,
         fill=True,
         new_x="LMARGIN",
@@ -425,7 +478,7 @@ def _add_handover_contract(pdf: _InvoicePDF, order: Order, PAGE_W: float, days_c
     pdf.set_fill_color(30, 58, 138)
     pdf.set_text_color(255, 255, 255)
     pdf.bold(14)
-    pdf.cell(PAGE_W, 11, "АКТ ПРИЁМА-ПЕРЕДАЧИ / PŘEDÁVACÍ PROTOKOL",
+    pdf.cell(PAGE_W, 11, _t("АКТ ПРИЁМА-ПЕРЕДАЧИ / PŘEDÁVACÍ PROTOKOL"),
              fill=True, align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(0, 0, 0)
     pdf.ln(5)
@@ -435,12 +488,12 @@ def _add_handover_contract(pdf: _InvoicePDF, order: Order, PAGE_W: float, days_c
     # ── Parties ──────────────────────────────────────────────────────────
     pdf.section_title("СТОРОНЫ / STRANY")
     parties: list[tuple[str, str]] = [
-        ("Арендодатель / Pronajímatel",
-         f"{_company_name()}, IČO: {_company_ico()}, {_company_address()}"),
-        ("Арендатор / Nájemce",
-         f"{order.name}, {order.email}, {order.phone}"),
-        ("Дата составления / Datum", invoice_date),
-        ("Заказ / Číslo objednávky", f"INV-{order.id}"),
+        (_t("Арендодатель / Pronajímatel"),
+         _t(f"{_company_name()}, IČO: {_company_ico()}, {_company_address()}")),
+        (_t("Арендатор / Nájemce"),
+         _t(f"{order.name}, {order.email}, {order.phone}")),
+        (_t("Дата составления / Datum"), invoice_date),
+        (_t("Заказ / Číslo objednávky"), f"INV-{order.id}"),
     ]
     for label, value in parties:
         pdf.set_x(pdf.l_margin)
@@ -457,13 +510,13 @@ def _add_handover_contract(pdf: _InvoicePDF, order: Order, PAGE_W: float, days_c
         sorted_dates = sorted(order.dates)
         start_str = _fmt_date(sorted_dates[0])
         end_str   = _fmt_date(sorted_dates[-1])
-        period_line = f"{start_str} — {end_str}  ({days_count} {'день' if days_count == 1 else 'дней'})"
-        start_time = order.delivery_slot or "по договорённости / dle dohody"
-        end_time   = getattr(order, 'return_slot', None) or "по договорённости / dle dohody"
+        period_line = _t(f"{start_str} — {end_str}  ({days_count} {'день' if days_count == 1 else 'дней'})")
+        start_time = _t(order.delivery_slot or "по договорённости / dle dohody")
+        end_time   = _t(getattr(order, 'return_slot', None) or "по договорённости / dle dohody")
         pdf.section_title("ПЕРИОД АРЕНДЫ / OBDOBÍ PRONÁJMU")
-        for lbl, val in [("Начало / Začátek", f"{start_str}  {start_time}"),
-                         ("Конец / Konec",    f"{end_str}  {end_time}"),
-                         ("Всего дней / Počet dní", period_line)]:
+        for lbl, val in [(_t("Начало / Začátek"), _t(f"{start_str}  {start_time}")),
+                         (_t("Конец / Konec"),    _t(f"{end_str}  {end_time}")),
+                         (_t("Всего дней / Počet dní"), period_line)]:
             pdf.set_x(pdf.l_margin)
             pdf.set_text_color(100, 100, 100)
             pdf.regular(8)
@@ -481,7 +534,7 @@ def _add_handover_contract(pdf: _InvoicePDF, order: Order, PAGE_W: float, days_c
             opts = ", ".join(o.name for o in item.selected_options)
             line += f" (+ {opts})"
         pdf.regular(8)
-        pdf.cell(0, 6, line, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 6, _t(line), new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
 
     # ── Checkboxes ───────────────────────────────────────────────────────
@@ -499,14 +552,14 @@ def _add_handover_contract(pdf: _InvoicePDF, order: Order, PAGE_W: float, days_c
         pdf.set_line_width(0.2)
         pdf.set_x(pdf.l_margin + box_size + 2)
         pdf.regular(9)
-        pdf.cell(PAGE_W - box_size - 2, 6.5, text, new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(PAGE_W - box_size - 2, 6.5, _t(text), new_x="LMARGIN", new_y="NEXT")
 
-    rent_paid_label = (
+    rent_paid_label = _t(
         f"Аренда на {days_count} {'день' if days_count == 1 else 'дней'} оплачена — "
         f"{_fmt_price(order.total_price - order.delivery_fee)}  "
         f"/ Nájemné za {days_count} dní zaplaceno"
     )
-    deposit_label = (
+    deposit_label = _t(
         "Залог оплачен и подлежит возврату при сдаче оборудования "
         "/ Záloha zaplacena a bude vrácena při předání"
     )
@@ -529,13 +582,13 @@ def _add_handover_contract(pdf: _InvoicePDF, order: Order, PAGE_W: float, days_c
     pdf.set_x(pdf.l_margin)
     pdf.regular(7)
     pdf.set_text_color(120, 120, 120)
-    pdf.cell(half, 5, "Арендодатель / Pronajímatel", align="C", new_x="RIGHT", new_y="TOP")
+    pdf.cell(half, 5, _t("Арендодатель / Pronajímatel"), align="C", new_x="RIGHT", new_y="TOP")
 
     # Right: lessee
     right_x = pdf.l_margin + half + 10
     pdf.set_x(right_x)
     pdf.line(right_x, sig_y + 12, right_x + half, sig_y + 12)
     pdf.set_x(right_x)
-    pdf.cell(half, 5, "Арендатор / Nájemce", align="C", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(half, 5, _t("Арендатор / Nájemce"), align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.set_text_color(0, 0, 0)
     pdf.set_line_width(0.2)
