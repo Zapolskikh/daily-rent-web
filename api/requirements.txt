@@ -1,7 +1,7 @@
 fastapi
 uvicorn
 python-multipart
-pydantic[email]
+pydantic[email]>=2.13.0
 itsdangerous
 pyTelegramBotAPI
 SQLAlchemy
