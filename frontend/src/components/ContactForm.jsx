@@ -36,8 +36,8 @@ export default function ContactForm({ selectedProduct }) {
 
   return (
     <section className="card" id="contact">
-      <h2 className="mb-1 text-2xl font-semibold" style={{ color: '#f0f6ff' }}>Обратная связь</h2>
-      <p className="mb-4 text-sm" style={{ color: '#7a8fa6' }}>Оставьте заявку, и мы ответим на email.</p>
+      <h2 className="mb-1 text-2xl font-semibold" style={{ color: '#0d2818' }}>Обратная связь</h2>
+      <p className="mb-4 text-sm" style={{ color: '#3d6b52' }}>Оставьте заявку, и мы ответим на email.</p>
 
       {selectedProduct && (
         <div className="mb-4 rounded-xl p-3 text-sm" style={{ background: 'rgba(26,140,63,0.09)', color: '#157033', border: '1px solid rgba(26,140,63,0.20)' }}>
@@ -81,7 +81,7 @@ export default function ContactForm({ selectedProduct }) {
       </form>
 
       {result && <p className="mt-3 text-sm" style={{ color: '#34d399' }}>{result}</p>}
-      {error && <p className="mt-3 text-sm" style={{ color: '#f87171' }}>{error}</p>}
+      {error && <p className="mt-3 text-sm" style={{ color: '#b91c1c' }}>{error}</p>}
     </section>
   )
 }

@@ -32,9 +32,9 @@ export default function DeliveryTermsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="card bg-gradient-to-r from-slate-900 to-slate-700 text-white">
-        <h1 className="text-3xl font-bold">Доставка и условия аренды</h1>
-        <p className="mt-2 text-slate-200">
+      <section className="card" style={{ background: 'linear-gradient(135deg, #0a3d1f 0%, #157033 30%, #1a8c3f 70%, #0a3d1f 100%)' }}>
+        <h1 className="text-3xl font-bold text-white">Доставка и условия аренды</h1>
+        <p className="mt-2 text-green-100">
           Прозрачные тарифы по Праге, кауце по уровню риска и простые правила выдачи.
         </p>
       </section>
