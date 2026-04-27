@@ -19,6 +19,9 @@ frontend/dist/
 backend/.env
 frontend/.env
 
+# uv lock (references local registry, not for deployment)
+uv.lock
+
 # Editor
 .vscode/
 .DS_Store
