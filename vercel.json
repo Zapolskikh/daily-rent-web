@@ -1,12 +1,10 @@
 {
   "buildCommand": "cd frontend && npm run build",
-  "installCommand": "rm -rf node_modules frontend/node_modules package-lock.json frontend/package-lock.json && npm install",
+  "installCommand": "cd frontend && rm -rf node_modules package-lock.json && npm install",
   "outputDirectory": "frontend/dist",
-  "build": {
-    "env": {
-      "UV_PYTHON": "3.12",
-      "PYO3_USE_ABI3_FORWARD_COMPATIBILITY": "1"
-    }
+  "env": {
+    "UV_PYTHON": "3.12",
+    "PYO3_USE_ABI3_FORWARD_COMPATIBILITY": "1"
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.py" },
