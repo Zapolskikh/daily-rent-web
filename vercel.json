@@ -3,6 +3,7 @@
   "outputDirectory": "frontend/dist",
   "build": {
     "env": {
+      "UV_PYTHON": "3.12",
       "PYO3_USE_ABI3_FORWARD_COMPATIBILITY": "1"
     }
   },
