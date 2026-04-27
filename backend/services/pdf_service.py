@@ -19,7 +19,11 @@ from models import Order
 # ─── Font resolution ──────────────────────────────────────────────────────────
 
 _FONT_CACHE = Path("/tmp/RentPrague_DejaVuSans.ttf")
+# jsDelivr CDN mirror — more reliable from serverless than direct GitHub raw
 _FONT_URL = (
+    "https://cdn.jsdelivr.net/gh/dejavu-fonts/dejavu-fonts@2.37/ttf/DejaVuSans.ttf"
+)
+_FONT_URL_FALLBACK = (
     "https://github.com/dejavu-fonts/dejavu-fonts/raw/version_2_37/ttf/DejaVuSans.ttf"
 )
 _SYSTEM_FONT_PATHS = [
@@ -31,19 +35,40 @@ _SYSTEM_FONT_PATHS = [
 ]
 _LOCAL_FONT = Path(__file__).resolve().parent.parent / "assets" / "DejaVuSans.ttf"
 
+_resolved_font_path: str | None = None  # module-level cache to avoid repeated I/O
+
 
 def _resolve_font() -> str:
     """Return path to a TTF font file that supports Cyrillic."""
+    global _resolved_font_path
+    if _resolved_font_path and Path(_resolved_font_path).exists():
+        return _resolved_font_path
+
     if _LOCAL_FONT.exists():
-        return str(_LOCAL_FONT)
+        _resolved_font_path = str(_LOCAL_FONT)
+        return _resolved_font_path
+
     for p in _SYSTEM_FONT_PATHS:
         if Path(p).exists():
-            return p
+            _resolved_font_path = p
+            return _resolved_font_path
+
     if _FONT_CACHE.exists():
-        return str(_FONT_CACHE)
-    # Download once to /tmp (available in Lambda/Vercel environments)
-    urllib.request.urlretrieve(_FONT_URL, _FONT_CACHE)
-    return str(_FONT_CACHE)
+        _resolved_font_path = str(_FONT_CACHE)
+        return _resolved_font_path
+
+    # Download to /tmp — try primary CDN, then fallback
+    for url in (_FONT_URL, _FONT_URL_FALLBACK):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "rent-prague/1.0"})
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                _FONT_CACHE.write_bytes(resp.read())
+            _resolved_font_path = str(_FONT_CACHE)
+            return _resolved_font_path
+        except Exception:
+            continue
+
+    raise RuntimeError("Could not resolve a TTF font for PDF generation")
 
 
 # ─── Company info (configurable via env) ──────────────────────────────────────

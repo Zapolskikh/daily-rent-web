@@ -165,13 +165,8 @@ def send_cancellation_email(order: "Order", reason: str) -> None:
     _smtp_send(subject, body)
 
 
-def send_invoice_email(order: Order) -> None:
-    """Generate a PDF invoice and send it to the customer's email address."""
-    from services.pdf_service import generate_invoice_pdf  # lazy import to avoid circular deps
-
-    pdf_bytes = generate_invoice_pdf(order)
-    filename = f"invoice_INV-{order.id}.pdf"
-
+def _build_confirmation_body(order: Order) -> tuple[str, str]:
+    """Return (subject, body) for a plain-text order confirmation to the customer."""
     items_summary = ", ".join(item.product_name for item in order.items)
     dates_text = ""
     if order.dates:
@@ -184,6 +179,7 @@ def send_invoice_email(order: Order) -> None:
                 return d
         dates_text = f"\nДаты аренды: {_fmt(sorted_dates[0])} — {_fmt(sorted_dates[-1])}"
 
+    subject = f"[Rent Prague] Подтверждение заказа #{order.id} — инвойс"
     body = "\n".join([
         f"Здравствуйте, {order.name}!",
         "",
@@ -192,15 +188,43 @@ def send_invoice_email(order: Order) -> None:
         f"Состав заказа: {items_summary}{dates_text}",
         f"Итого к оплате: {order.total_price:,.0f} Kč",
         "",
-        "Во вложении — инвойс (PDF) для вашего удобства.",
-        "",
         "Если у вас возникнут вопросы, пишите нам в ответ на это письмо.",
         "",
         "С уважением,",
         "Команда Rent Prague",
     ])
+    return subject, body
 
-    subject = f"[Rent Prague] Подтверждение заказа #{order.id} — инвойс"
+
+def send_order_confirmation_email(order: Order) -> None:
+    """Send a plain-text confirmation email to the customer (no PDF attachment)."""
+    subject, body = _build_confirmation_body(order)
+    sender, app_password, _ = _smtp_credentials()
+
+    msg = MIMEText(body, "plain", "utf-8")
+    msg["Subject"] = subject
+    msg["From"] = sender
+    msg["To"] = order.email
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=20) as smtp:
+        smtp.login(sender, app_password)
+        smtp.sendmail(sender, [order.email], msg.as_string())
+
+
+def send_invoice_email(order: Order) -> None:
+    """Generate a PDF invoice and send it to the customer's email address."""
+    from services.pdf_service import generate_invoice_pdf  # lazy import to avoid circular deps
+
+    pdf_bytes = generate_invoice_pdf(order)
+    filename = f"invoice_INV-{order.id}.pdf"
+
+    subject, body = _build_confirmation_body(order)
+    # Add PDF note to body
+    body = body.replace(
+        "Если у вас возникнут вопросы,",
+        "Во вложении — инвойс (PDF) для вашего удобства.\n\nЕсли у вас возникнут вопросы,",
+    )
+
     _smtp_send_with_attachment(
         subject=subject,
         body=body,

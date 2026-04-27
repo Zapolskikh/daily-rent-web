@@ -35,7 +35,7 @@ from models import (
     ProductsResponse,
     utc_now,
 )
-from services.email_service import EmailConfigError, send_cancellation_email, send_contact_email, send_invoice_email, send_order_email, send_restock_email
+from services.email_service import EmailConfigError, send_cancellation_email, send_contact_email, send_invoice_email, send_order_confirmation_email, send_order_email, send_restock_email
 from services.object_storage import ObjectStorageConfigError, save_product_image
 from services.storage import (
     delete_product_by_id,
@@ -286,11 +286,15 @@ def create_order(payload: OrderCreate) -> Order:
 
     _notify_both(send_order_email, send_order_telegram, order)
 
-    # Send invoice PDF to the customer (best-effort; never block the response)
+    # Send invoice PDF to the customer; fall back to plain confirmation if PDF fails
     try:
         send_invoice_email(order)
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"[invoice] PDF send failed ({exc!r}), trying plain confirmation", file=sys.stderr)
+        try:
+            send_order_confirmation_email(order)
+        except Exception as exc2:
+            print(f"[invoice] plain confirmation also failed: {exc2!r}", file=sys.stderr)
 
     return order
 
