@@ -1,8 +1,15 @@
 {
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "env": {
-    "PYO3_USE_ABI3_FORWARD_COMPATIBILITY": "1"
+  "functions": {
+    "api/*.py": {
+      "runtime": "python3.12"
+    }
+  },
+  "build": {
+    "env": {
+      "PYO3_USE_ABI3_FORWARD_COMPATIBILITY": "1"
+    }
   },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.py" },
