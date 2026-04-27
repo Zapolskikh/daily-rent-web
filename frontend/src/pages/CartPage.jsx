@@ -15,6 +15,17 @@ const BANK_NAME  = import.meta.env.VITE_BANK_NAME
 
 const CRYPTO_USDT = import.meta.env.VITE_CRYPTO_USDT
 
+const MISSING_BANK_ENV   = !BANK_IBAN || !BANK_BIC || !BANK_NAME
+const MISSING_CRYPTO_ENV = !CRYPTO_USDT
+
+if (MISSING_BANK_ENV || MISSING_CRYPTO_ENV) {
+  console.warn(
+    '[Payment] Отсутствуют переменные окружения:',
+    [...(MISSING_BANK_ENV   ? ['VITE_BANK_IBAN','VITE_BANK_BIC','VITE_BANK_NAME'] : []),
+     ...(MISSING_CRYPTO_ENV ? ['VITE_CRYPTO_USDT'] : [])]
+  )
+}
+
 function buildSpdQr(iban, amount, vs) {
   return `SPD*1.0*ACC:${iban}*AM:${amount}.00*CC:CZK*MSG:Daily Rent Prague*X-VS:${vs}`
 }
@@ -505,6 +516,27 @@ export default function CartPage() {
             </div>
 
             <div className="p-6 space-y-4">
+
+              {/* ════ MISSING ENV BANNER ════ */}
+              {((paymentMethod === 'transfer' && MISSING_BANK_ENV) ||
+                (paymentMethod === 'crypto'   && MISSING_CRYPTO_ENV)) && (
+                <div className="rounded-xl bg-red-50 border border-red-300 p-4 space-y-2 text-sm">
+                  <p className="font-bold text-red-700">⚠️ Ошибка конфигурации</p>
+                  <p className="text-red-600">Не заданы переменные окружения для оплаты. Добавьте в Vercel и сделайте Redeploy:</p>
+                  <ul className="font-mono text-xs text-red-800 space-y-0.5 list-disc list-inside">
+                    {paymentMethod === 'transfer' && MISSING_BANK_ENV && (
+                      <>
+                        {!BANK_IBAN && <li>VITE_BANK_IBAN</li>}
+                        {!BANK_BIC  && <li>VITE_BANK_BIC</li>}
+                        {!BANK_NAME && <li>VITE_BANK_NAME</li>}
+                      </>
+                    )}
+                    {paymentMethod === 'crypto' && MISSING_CRYPTO_ENV && (
+                      <li>VITE_CRYPTO_USDT</li>
+                    )}
+                  </ul>
+                </div>
+              )}
 
               {/* ════ НАЛИЧНЫЕ ════ */}
               {paymentMethod === 'cash' && (
