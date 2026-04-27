@@ -252,9 +252,9 @@ export default function CartPage() {
             <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Получение товара</p>
             <div className="flex flex-col gap-2">
               {[['delivery', '🚚 Доставка по адресу'], ['pickup', '🏠 Самовывоз (Прага 7)']].map(([v, l]) => (
-                <label key={v} className={`flex items-center gap-2 cursor-pointer rounded-xl border p-3 transition ${deliveryType === v ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                <label key={v} className={`flex items-center gap-2 cursor-pointer rounded-xl border p-3 transition ${deliveryType === v ? 'border-green-600 bg-green-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                   <input type="radio" name="delivery" value={v} checked={deliveryType === v}
-                    onChange={() => setDeliveryType(v)} className="accent-teal-600" />
+                    onChange={() => setDeliveryType(v)} className="accent-green-700" />
                   <span className="text-sm font-medium">{l}</span>
                 </label>
               ))}
@@ -264,9 +264,9 @@ export default function CartPage() {
             <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Возврат товара</p>
             <div className="flex flex-col gap-2">
               {[['pickup', '🚚 Забираем сами'], ['self', '🏠 Самоотвоз (Прага 7)']].map(([v, l]) => (
-                <label key={v} className={`flex items-center gap-2 cursor-pointer rounded-xl border p-3 transition ${returnType === v ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                <label key={v} className={`flex items-center gap-2 cursor-pointer rounded-xl border p-3 transition ${returnType === v ? 'border-green-600 bg-green-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                   <input type="radio" name="returnType" value={v} checked={returnType === v}
-                    onChange={() => setReturnType(v)} className="accent-teal-600" />
+                    onChange={() => setReturnType(v)} className="accent-green-700" />
                   <span className="text-sm font-medium">{l}</span>
                 </label>
               ))}
@@ -274,7 +274,7 @@ export default function CartPage() {
           </div>
         </div>
         {deliveryFee > 0 ? (
-          <div className="rounded-xl bg-teal-50 border border-teal-200 px-4 py-3 text-sm text-teal-800 flex justify-between items-center">
+          <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 flex justify-between items-center">
             <span>🚛 Доставка / отвоз{deliveryFee === 249 ? ' (туда и обратно)' : ' (одна поездка)'}</span>
             <strong>{deliveryFee} Kč</strong>
           </div>
@@ -305,7 +305,7 @@ export default function CartPage() {
             />
           </div>
           {selectedDate && (
-            <p className="mt-2 text-sm font-medium text-teal-700">
+            <p className="mt-2 text-sm font-medium text-green-700">
               Выбрано: {selectedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           )}
@@ -337,8 +337,8 @@ export default function CartPage() {
                         ${isBooked
                           ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through'
                           : isSelected
-                            ? 'bg-teal-600 text-white border-teal-600'
-                            : 'bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100 hover:border-teal-400'}`}>
+                            ? 'bg-green-700 text-white border-green-700'
+                            : 'bg-green-50 text-green-800 border-green-200 hover:bg-green-100 hover:border-green-400'}`}>
                       {h}:00 – {h + 1}:00
                       {isBooked && <span className="ml-1 text-xs">✕</span>}
                     </button>
@@ -361,9 +361,9 @@ export default function CartPage() {
               ['transfer', '🏦 Банковским переводом'],
               ['crypto',   '₿ Криптовалютой'],
             ].map(([v, l]) => (
-              <label key={v} className={`flex items-center gap-2 cursor-pointer rounded-xl border p-3 transition ${paymentMethod === v ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+              <label key={v} className={`flex items-center gap-2 cursor-pointer rounded-xl border p-3 transition ${paymentMethod === v ? 'border-green-600 bg-green-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                 <input type="radio" name="paymentMethod" value={v} checked={paymentMethod === v}
-                  onChange={() => setPaymentMethod(v)} className="accent-teal-600" />
+                  onChange={() => setPaymentMethod(v)} className="accent-green-700" />
                 <span className="text-sm font-medium">{l}</span>
               </label>
             ))}
@@ -376,9 +376,9 @@ export default function CartPage() {
               ['same', '↩ Тем же способом (возврат тем же способом)'],
               ['cash', '💵 Залог наличными'],
             ].map(([v, l]) => (
-              <label key={v} className={`flex items-center gap-2 cursor-pointer rounded-xl border p-3 transition ${depositMethod === v ? 'border-teal-500 bg-teal-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+              <label key={v} className={`flex items-center gap-2 cursor-pointer rounded-xl border p-3 transition ${depositMethod === v ? 'border-green-600 bg-green-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                 <input type="radio" name="depositMethod" value={v} checked={depositMethod === v}
-                  onChange={() => setDepositMethod(v)} className="accent-teal-600" />
+                  onChange={() => setDepositMethod(v)} className="accent-green-700" />
                 <span className="text-sm">{l}</span>
               </label>
             ))}

@@ -66,13 +66,13 @@ export default function HomePage() {
       {/* Hero */}
       <section className="relative overflow-hidden rounded-3xl px-8 py-12 md:py-16 text-white"
         style={{
-          background: 'linear-gradient(135deg, #091f1c 0%, #0d4540 28%, #0b3455 60%, #0c3448 82%, #091f1c 100%)',
+          background: 'linear-gradient(135deg, #0a3d1f 0%, #157033 28%, #1a8c3f 60%, #157033 82%, #0a3d1f 100%)',
         }}>
         {/* Decorative blobs */}
         <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full opacity-20"
-          style={{ background: 'radial-gradient(circle, #5eead4, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(circle, #78bf2e, transparent 70%)' }} />
         <div className="pointer-events-none absolute -bottom-16 -left-16 h-56 w-56 rounded-full opacity-15"
-          style={{ background: 'radial-gradient(circle, #22d3ee, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(circle, #2ab45e, transparent 70%)' }} />
 
         <div className="relative flex flex-col md:flex-row items-center gap-8">
           {/* Left: text */}
@@ -81,10 +81,10 @@ export default function HomePage() {
               🏙️ Прага · Доставка и самовывоз
             </div>
             <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">Аренда товаров в Праге</h1>
-            <p className="mt-3 max-w-xl text-lg text-teal-100">
+            <p className="mt-3 max-w-xl text-lg text-green-100">
               Микро-аренда для бытовых задач: 1–3 дня, доставка по Праге, понятные наборы.
             </p>
-            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-teal-200">
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-green-200">
               <span>✓ Пылесос</span><span>–</span>
               <span>✓ Лазерный уровень</span><span>–</span>
               <span>✓ Детектор проводки</span><span>–</span>
@@ -92,7 +92,7 @@ export default function HomePage() {
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
               <a href="/contact"
-                className="btn bg-white text-teal-800 font-bold px-6 py-2.5 hover:bg-teal-50"
+                className="btn bg-white text-green-900 font-bold px-6 py-2.5 hover:bg-green-50"
                 style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.18)' }}>
                 Оставить заявку
               </a>
@@ -108,11 +108,11 @@ export default function HomePage() {
             background: 'rgba(255,255,255,0.06)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(45,212,191,0.28)',
+            border: '1px solid rgba(120,191,46,0.32)',
             borderRadius: '20px',
             padding: '28px 32px',
             minHeight: '200px',
-            boxShadow: '0 0 50px rgba(45,212,191,0.10), 0 8px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.07)',
+            boxShadow: '0 0 50px rgba(26,140,63,0.14), 0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.10)',
           }}>
             {/* Progress bars */}
             <div className="flex gap-1.5 mb-6">
@@ -124,7 +124,7 @@ export default function HomePage() {
                     height: '3px',
                     flex: 1,
                     borderRadius: '2px',
-                    background: i === slide ? '#2dd4bf' : 'rgba(45,212,191,0.22)',
+                    background: i === slide ? '#78bf2e' : 'rgba(120,191,46,0.25)',
                     transition: 'background 0.3s',
                     border: 'none',
                     cursor: 'pointer',
@@ -140,13 +140,13 @@ export default function HomePage() {
               <div style={{ fontSize: '3rem', lineHeight: 1, marginBottom: '14px' }}>
                 {billboardSlides[slide].icon}
               </div>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#f0f6ff', margin: 0 }}>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>
                 {billboardSlides[slide].title}
               </h3>
-              <p style={{ fontSize: '0.95rem', color: '#5eead4', fontWeight: 600, margin: '5px 0 12px' }}>
+              <p style={{ fontSize: '0.95rem', color: '#a8e4b4', fontWeight: 600, margin: '5px 0 12px' }}>
                 {billboardSlides[slide].sub}
               </p>
-              <p style={{ fontSize: '0.9rem', color: 'rgba(203,213,225,0.82)', lineHeight: 1.6, margin: 0 }}>
+              <p style={{ fontSize: '0.9rem', color: 'rgba(220,240,228,0.90)', lineHeight: 1.6, margin: 0 }}>
                 {billboardSlides[slide].body}
               </p>
             </div>

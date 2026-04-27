@@ -83,7 +83,7 @@ export default function ProductModal({ product, onClose }) {
                   >
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded-full accent-teal-600"
+                      className="h-4 w-4 rounded-full accent-green-700"
                       checked={selectedOptionIds.has(option.id)}
                       onChange={() => toggleOption(option.id)}
                     />
@@ -95,8 +95,8 @@ export default function ProductModal({ product, onClose }) {
             </div>
           )}
 
-          <div className="rounded-xl bg-teal-50 px-4 py-3 flex items-baseline justify-between">
-            <span className="text-sm text-teal-700">Итого в день:</span>
+          <div className="rounded-xl bg-green-50 px-4 py-3 flex items-baseline justify-between">
+            <span className="text-sm text-green-700">Итого в день:</span>
             <strong className="text-xl text-brand">{totalPerDay} Kč</strong>
           </div>
 

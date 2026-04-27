@@ -620,13 +620,13 @@ export default function AdminPage() {
 
             {/* Legend */}
             <div className="flex flex-wrap gap-3 text-xs text-slate-600">
-              <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded bg-teal-600 inline-block"/><b>Сохранено в БД</b></span>
+              <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded bg-green-700 inline-block"/><b>Сохранено в БД</b></span>
               <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded bg-green-200 border border-green-500 inline-block"/>Будет добавлено</span>
               <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded bg-red-100 border border-red-400 inline-block"/>Будет удалено</span>
               <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded bg-slate-100 inline-block"/>Не выбрано</span>
               <span className="flex items-center gap-1.5">
                 <span className="relative inline-block h-4 w-4">
-                  <span className="h-4 w-4 rounded bg-teal-600 inline-block"/>
+                  <span className="h-4 w-4 rounded bg-green-700 inline-block"/>
                   <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-blue-500 border border-white"/>
                 </span>
                 <b>Есть активный заказ (ожидает/подтверждён)</b>
@@ -647,8 +647,8 @@ export default function AdminPage() {
                     const isFocused = focusedDate === iso
                     const slotCount = selectedDates.filter(d => d.startsWith(iso + ':')).length
                     const day = new Date(iso).getDate()
-                    let cls = 'bg-slate-100 text-slate-600 hover:bg-teal-50'
-                    if (inDb && selected) cls = 'bg-teal-600 text-white hover:bg-teal-500'
+                    let cls = 'bg-slate-100 text-slate-600 hover:bg-green-50'
+                    if (inDb && selected) cls = 'bg-green-700 text-white hover:bg-green-600'
                     else if (inDb && !selected) cls = 'bg-red-100 text-red-700 border border-red-400 hover:bg-red-200'
                     else if (!inDb && selected) cls = 'bg-green-200 text-green-800 border border-green-500 hover:bg-green-300'
                     if (isFocused) cls += ' ring-2 ring-offset-1 ring-amber-400'
@@ -723,9 +723,9 @@ export default function AdminPage() {
                         const inDb = savedDateSet.has(key)
                         const selected = selectedDateSet.has(key)
                         const isOccupied = occupiedSlotsByDate[focusedDate]?.has(slot)
-                        let cls = 'border-slate-200 text-slate-500 hover:border-teal-400 hover:text-teal-700'
+                        let cls = 'border-slate-200 text-slate-500 hover:border-green-500 hover:text-green-700'
                         if (isOccupied) cls = 'bg-blue-500 text-white border-blue-500 cursor-default'
-                        else if (inDb && selected) cls = 'bg-teal-600 text-white border-teal-600'
+                        else if (inDb && selected) cls = 'bg-green-700 text-white border-green-700'
                         else if (inDb && !selected) cls = 'bg-red-50 text-red-700 border-red-400'
                         else if (!inDb && selected) cls = 'bg-green-100 text-green-800 border-green-500'
                         const occupiedTitle = isOccupied ? ' · 🔵 Занято активным заказом' : ''

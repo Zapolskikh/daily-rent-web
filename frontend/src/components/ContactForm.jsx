@@ -40,7 +40,7 @@ export default function ContactForm({ selectedProduct }) {
       <p className="mb-4 text-sm" style={{ color: '#7a8fa6' }}>Оставьте заявку, и мы ответим на email.</p>
 
       {selectedProduct && (
-        <div className="mb-4 rounded-xl p-3 text-sm" style={{ background: 'rgba(20,184,166,0.12)', color: '#5eead4', border: '1px solid rgba(45,212,191,0.2)' }}>
+        <div className="mb-4 rounded-xl p-3 text-sm" style={{ background: 'rgba(26,140,63,0.09)', color: '#157033', border: '1px solid rgba(26,140,63,0.20)' }}>
           Выбран товар: <strong>{selectedProduct.name}</strong>
         </div>
       )}

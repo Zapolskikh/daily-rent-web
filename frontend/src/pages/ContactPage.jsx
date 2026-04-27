@@ -32,11 +32,11 @@ export default function ContactPage() {
     <div className="space-y-6">
       {/* Hero */}
       <section className="relative overflow-hidden rounded-3xl px-8 py-10 text-white"
-        style={{ background: 'linear-gradient(135deg, #091f1c 0%, #0d4540 30%, #0b3455 70%, #091f1c 100%)' }}>
+        style={{ background: 'linear-gradient(135deg, #0a3d1f 0%, #157033 30%, #1a8c3f 70%, #0a3d1f 100%)' }}>
         <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full opacity-20"
-          style={{ background: 'radial-gradient(circle, #5eead4, transparent 70%)' }} />
+          style={{ background: 'radial-gradient(circle, #78bf2e, transparent 70%)' }} />
         <h1 className="text-3xl font-bold">Связаться с нами</h1>
-        <p className="mt-2 text-teal-200">
+        <p className="mt-2 text-green-200">
           Ответим в течение нескольких часов. Для быстрого ответа — пишите в Telegram.
         </p>
       </section>
@@ -60,12 +60,12 @@ export default function ContactPage() {
                         href={c.href}
                         target={c.href.startsWith('http') ? '_blank' : undefined}
                         rel="noopener noreferrer"
-                        className="font-medium hover:underline" style={{ color: '#2dd4bf' }}
+                        className="font-medium hover:underline" style={{ color: '#1a8c3f' }}
                       >
                         {c.value}
                       </a>
                     ) : (
-                      <p className="font-medium" style={{ color: '#e4ecf7' }}>{c.value}</p>
+                      <p className="font-medium" style={{ color: '#0a2e14' }}>{c.value}</p>
                     )}
                   </div>
                 </li>
@@ -73,9 +73,9 @@ export default function ContactPage() {
             </ul>
           </section>
 
-          <section className="card" style={{ borderColor: 'rgba(45,212,191,0.2)', background: 'linear-gradient(135deg,rgba(9,31,28,0.9) 0%,rgba(13,45,55,0.85) 100%)' }}>
-            <h3 className="font-semibold mb-3" style={{ color: '#5eead4' }}>💡 Как мы работаем</h3>
-            <ul className="space-y-2 text-sm" style={{ color: '#cbd5e1' }}>
+          <section className="card" style={{ borderColor: 'rgba(26,140,63,0.22)', background: 'linear-gradient(135deg, rgba(237,249,242,0.95) 0%, rgba(220,245,230,0.90) 100%)' }}>
+            <h3 className="font-semibold mb-3" style={{ color: '#157033' }}>💡 Как мы работаем</h3>
+            <ul className="space-y-2 text-sm" style={{ color: '#2e5a3a' }}>
               <li>1. Оставьте заявку или напишите в Telegram</li>
               <li>2. Уточняем детали и подтверждаем наличие</li>
               <li>3. Доставляем в удобный слот или готовим к самовывозу</li>

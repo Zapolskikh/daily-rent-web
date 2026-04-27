@@ -13,7 +13,7 @@ function CartIcon() {
     <Link to="/cart" className="rounded-xl bg-white/20 px-5 py-2.5 text-lg font-semibold text-white hover:bg-white/30 transition relative">
       🛒 Корзина
       {totalCount > 0 && (
-        <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-teal-900">
+        <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-xs font-bold text-green-900">
           {totalCount}
         </span>
       )}
@@ -41,10 +41,10 @@ function Layout() {
         ref={headerRef}
         className="sticky top-0 z-40"
         style={{
-          background: 'linear-gradient(135deg, #060d1a 0%, #0a2e2a 20%, #07213a 50%, #0a2e2a 80%, #060d1a 100%)',
+          background: 'linear-gradient(135deg, #0a3d1f 0%, #157033 20%, #105528 50%, #157033 80%, #0a3d1f 100%)',
           backgroundSize: '300% 100%',
           backgroundPosition: '0% 50%',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 0 rgba(45,212,191,0.12)',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(120,191,46,0.20)',
         }}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
