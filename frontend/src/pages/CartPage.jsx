@@ -391,7 +391,6 @@ export default function CartPage() {
           <div className="grid grid-cols-2 gap-2">
             {[
               ['cash',     '💵 Наличными'],
-              ['card',     '💳 Банковской картой'],
               ['transfer', '🏦 Банковским переводом'],
               ['crypto',   '₿ Криптовалютой'],
             ].map(([v, l]) => (
