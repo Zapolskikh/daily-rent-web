@@ -1,11 +1,14 @@
 import { useEffect, useRef } from 'react'
 import { Link, Route, Routes, useNavigate } from 'react-router-dom'
 import { CartProvider, useCart } from './context/CartContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import HomePage from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
 import DeliveryTermsPage from './pages/DeliveryTermsPage'
 import CartPage from './pages/CartPage'
 import ContactPage from './pages/ContactPage'
+import AuthPage from './pages/AuthPage'
+import ProfilePage from './pages/ProfilePage'
 import CookieBanner from './components/CookieBanner'
 
 function CartIcon() {
@@ -18,6 +21,22 @@ function CartIcon() {
           {totalCount}
         </span>
       )}
+    </Link>
+  )
+}
+
+function UserNav() {
+  const { user } = useAuth()
+  if (user) {
+    return (
+      <Link to="/profile" className="rounded-xl bg-white/20 px-5 py-2.5 text-lg font-semibold text-white hover:bg-white/30 transition">
+        👤 {user.name}
+      </Link>
+    )
+  }
+  return (
+    <Link to="/auth" className="rounded-xl px-5 py-2.5 text-lg font-semibold text-white hover:bg-white/20 transition">
+      🔑 Войти
     </Link>
   )
 }
@@ -61,6 +80,7 @@ function Layout() {
             <Link to="/delivery-terms" className="rounded-xl px-5 py-2.5 text-lg font-semibold text-white hover:bg-white/20 transition">📋 Условия</Link>
             <Link to="/contact" className="rounded-xl px-5 py-2.5 text-lg font-semibold text-white hover:bg-white/20 transition">📩 Связаться</Link>
             <CartIcon />
+            <UserNav />
             {import.meta.env.DEV && (
               <Link to="/admin" className="rounded-xl bg-white/20 px-5 py-2.5 text-base font-semibold text-white hover:bg-white/30 transition">Админ</Link>
             )}
@@ -73,6 +93,8 @@ function Layout() {
           <Route path="/delivery-terms" element={<DeliveryTermsPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
           <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </main>
@@ -82,9 +104,11 @@ function Layout() {
 
 export default function App() {
   return (
-    <CartProvider>
-      <Layout />
-      <CookieBanner />
-    </CartProvider>
+    <AuthProvider>
+      <CartProvider>
+        <Layout />
+        <CookieBanner />
+      </CartProvider>
+    </AuthProvider>
   )
 }

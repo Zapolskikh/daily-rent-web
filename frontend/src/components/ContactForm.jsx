@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { sendContact } from '../lib/api'
+import { useAuth } from '../context/AuthContext'
 
 const initialState = {
   name: '',
@@ -9,10 +10,15 @@ const initialState = {
 }
 
 export default function ContactForm({ selectedProduct }) {
+  const { user } = useAuth()
   const [form, setForm] = useState(initialState)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState('')
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (user) setForm((f) => ({ ...f, name: user.name || '', email: user.email || '', phone: user.phone || '' }))
+  }, [user])
 
   async function onSubmit(event) {
     event.preventDefault()

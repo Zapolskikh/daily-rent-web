@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import QRCode from 'react-qr-code'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import { useAuth } from '../context/AuthContext'
 import { checkAvailability, createOrder, getAvailableDates, getBookedSlots, notifyAvailability } from '../lib/api'
 import { ru } from 'date-fns/locale/ru'
 
@@ -85,6 +86,7 @@ function CopyButton({ text }) {
 
 export default function CartPage() {
   const { items, removeFromCart, clearCart } = useCart()
+  const { user } = useAuth()
   const navigate = useNavigate()
 
   const [deliveryType, setDeliveryType] = useState('delivery')
@@ -126,6 +128,13 @@ export default function CartPage() {
   // Reset start slot when start date changes; reset end when start changes
   useEffect(() => { setSelectedSlot('') }, [selectedDate])
   useEffect(() => { setEndDate(null); setEndSlot('') }, [selectedDate])
+
+  // Auto-fill form from logged-in user profile
+  useEffect(() => {
+    if (user && !form.name && !form.email && !form.phone) {
+      setForm((f) => ({ ...f, name: user.name || '', email: user.email || '', phone: user.phone || '' }))
+    }
+  }, [user])
 
   if (items.length === 0 && !success) {
     return (

@@ -412,3 +412,36 @@ export async function debugRunSql(sql, token) {
 }
 
 export { API_BASE_URL }
+
+// ── User Auth ──────────────────────────────────────────────────────────────────
+
+export async function authRegister(data) {
+  return request('/api/auth/register', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function authLogin(data) {
+  return request('/api/auth/login', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function authGetProfile(token) {
+  return request('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+}
+
+export async function authUpdateProfile(data, token) {
+  return request('/api/auth/me', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function authGetOrders(token) {
+  return request('/api/auth/orders', { headers: { Authorization: `Bearer ${token}` } })
+}
+
+export async function authCancelOrder(orderId, token) {
+  return request(`/api/auth/orders/${orderId}/cancel`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+}

@@ -126,6 +126,39 @@ class AdminLoginResponse(BaseModel):
     token_type: str = "bearer"
 
 
+# ─── User Auth Models ─────────────────────────────────────────────────────────
+
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=120)
+    name: str = Field(min_length=2, max_length=80)
+    phone: str = Field(min_length=6, max_length=30)
+
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1, max_length=120)
+
+
+class UserProfile(BaseModel):
+    id: str
+    email: str
+    name: str
+    phone: str
+    created_at: datetime
+
+
+class UserProfileUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=80)
+    phone: str | None = Field(default=None, min_length=6, max_length=30)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserProfile
+
+
 class ProductsResponse(BaseModel):
     products: list[Product]
 

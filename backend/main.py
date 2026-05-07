@@ -3,6 +3,9 @@ from __future__ import annotations
 import os
 import sys
 import secrets
+
+from dotenv import load_dotenv
+load_dotenv()
 from pathlib import Path
 
 # Ensure backend/ is on sys.path when running as a Vercel serverless function
@@ -62,6 +65,7 @@ from services.telegram_service import (
     send_order_telegram,
     send_telegram_message,
 )
+from routes.auth import router as auth_router
 
 BASE_DIR = Path(__file__).resolve().parent
 UPLOADS_DIR = BASE_DIR / "uploads"
@@ -91,6 +95,7 @@ def _detect_default_product_image_url() -> str:
 DEFAULT_PRODUCT_IMAGE_URL = _detect_default_product_image_url()
 
 app = FastAPI(title="Rent Prague API", version="2.0.0")
+app.include_router(auth_router)
 
 
 @app.on_event("startup")
@@ -284,7 +289,10 @@ def create_order(payload: OrderCreate) -> Order:
     orders.append(order)
     write_orders(orders)
 
-    _notify_both(send_order_email, send_order_telegram, order)
+    try:
+        _notify_both(send_order_email, send_order_telegram, order)
+    except Exception as exc:
+        print(f"[order] notification failed: {exc!r}", file=sys.stderr)
 
     # Send invoice PDF to the customer; fall back to plain confirmation if PDF fails
     try:

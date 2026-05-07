@@ -13,6 +13,10 @@ class EmailConfigError(RuntimeError):
     pass
 
 
+def _is_dev() -> bool:
+    return os.getenv("APP_ENV", "production").lower() == "development"
+
+
 def _smtp_credentials() -> tuple[str, str, str]:
     """Return (sender, app_password, receiver). Raises EmailConfigError if incomplete."""
     sender = os.getenv("GMAIL_SENDER", "")
@@ -24,6 +28,9 @@ def _smtp_credentials() -> tuple[str, str, str]:
 
 
 def _smtp_send(subject: str, body: str) -> None:
+    if _is_dev():
+        print(f"[DEV EMAIL] To: (receiver) | Subject: {subject}\n{body[:200]}")
+        return
     sender, app_password, receiver = _smtp_credentials()
 
     msg = MIMEText(body, _charset="utf-8")
@@ -45,6 +52,9 @@ def _smtp_send_with_attachment(
     content_type: str = "application/pdf",
 ) -> None:
     """Send an email with a single attachment to *to* (in addition to the default receiver)."""
+    if _is_dev():
+        print(f"[DEV EMAIL+ATTACH] To: {to} | Subject: {subject} | File: {attachment_filename}")
+        return
     sender, app_password, receiver = _smtp_credentials()
 
     msg = MIMEMultipart()

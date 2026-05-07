@@ -83,6 +83,18 @@ class NotificationRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class UserRecord(Base):
+    """Registered customer accounts."""
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    email: Mapped[str] = mapped_column(String(256), nullable=False, unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(256), nullable=False)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    phone: Mapped[str] = mapped_column(String(30), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
 def init_db() -> None:
     Base.metadata.create_all(bind=_get_engine())
     _migrate_reservations_from_orders()
@@ -462,3 +474,70 @@ def delete_notifications_for_product(product_id: str) -> None:
     with _session() as session:
         session.query(NotificationRecord).filter(NotificationRecord.product_id == product_id).delete()
         session.commit()
+
+
+# ── Users ─────────────────────────────────────────────────────────────────────
+
+def create_user(user_id: str, email: str, password_hash: str, name: str, phone: str) -> UserRecord | None:
+    """Create a new user. Returns None if email already exists."""
+    with _session() as session:
+        existing = session.execute(
+            select(UserRecord).where(UserRecord.email == email)
+        ).scalar_one_or_none()
+        if existing:
+            return None
+        record = UserRecord(
+            id=user_id,
+            email=email,
+            password_hash=password_hash,
+            name=name,
+            phone=phone,
+            created_at=datetime.now(timezone.utc),
+        )
+        session.add(record)
+        session.commit()
+        session.refresh(record)
+        return record
+
+
+def get_user_by_email(email: str) -> UserRecord | None:
+    with _session() as session:
+        return session.execute(
+            select(UserRecord).where(UserRecord.email == email)
+        ).scalar_one_or_none()
+
+
+def get_user_by_id(user_id: str) -> UserRecord | None:
+    with _session() as session:
+        return session.get(UserRecord, user_id)
+
+
+def update_user(user_id: str, **fields) -> UserRecord | None:
+    with _session() as session:
+        record = session.get(UserRecord, user_id)
+        if not record:
+            return None
+        for key, value in fields.items():
+            if value is not None:
+                setattr(record, key, value)
+        session.commit()
+        session.refresh(record)
+        return record
+
+
+def get_orders_by_email(email: str) -> list:
+    """Return orders matching a customer email, newest first."""
+    from models import Order
+    with _session() as session:
+        rows = session.execute(
+            select(OrderRecord).order_by(OrderRecord.created_at.desc())
+        ).scalars().all()
+    results = []
+    for row in rows:
+        try:
+            order = Order.model_validate(row.data)
+            if order.email.lower() == email.lower():
+                results.append(order)
+        except Exception:
+            pass
+    return results

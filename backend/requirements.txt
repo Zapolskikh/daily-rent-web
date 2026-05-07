@@ -8,3 +8,6 @@ SQLAlchemy==2.0.41
 cloudinary==1.44.1
 asyncpg
 fpdf2==2.8.3
+bcrypt==4.3.0
+PyJWT==2.9.0
+python-dotenv==1.1.0
