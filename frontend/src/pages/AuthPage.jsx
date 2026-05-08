@@ -20,7 +20,7 @@ export default function AuthPage() {
         ? await authLogin({ email: form.email, password: form.password })
         : await authRegister(form)
       login(res.access_token, res.user)
-      navigate('/contact')
+      navigate('/')
     } catch (err) {
       setError(err.message || 'Ошибка')
     } finally {
