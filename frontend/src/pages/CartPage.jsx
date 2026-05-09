@@ -110,7 +110,37 @@ export default function CartPage() {
   const [depositMethod, setDepositMethod] = useState('same') // 'same' | 'cash'
   const [paymentStub, setPaymentStub] = useState(false)
   const [orderVs] = useState(() => String(Date.now()).slice(-10))
+  const [promoInput, setPromoInput] = useState('')
+  const [promoApplied, setPromoApplied] = useState(false)
+  const [promoError, setPromoError] = useState('')
   const formRef = useRef(null)
+
+  const PROMO_CODE = 'summerbundle'
+  const PROMO_DISCOUNT = 0.20
+
+  // Re-validate promo when cart changes
+  useEffect(() => {
+    if (promoApplied && items.length < 2) {
+      setPromoApplied(false)
+      setPromoError('Промокод недействителен: в корзине менее 2 позиций')
+    }
+  }, [items, promoApplied])
+
+  function applyPromo() {
+    const code = promoInput.trim().toLowerCase()
+    if (code !== PROMO_CODE) {
+      setPromoError('Промокод не найден')
+      setPromoApplied(false)
+      return
+    }
+    if (items.length < 2) {
+      setPromoError('Промокод действует при аренде 2 и более позиций')
+      setPromoApplied(false)
+      return
+    }
+    setPromoApplied(true)
+    setPromoError('')
+  }
 
   useEffect(() => {
     getAvailableDates()
@@ -187,7 +217,9 @@ export default function CartPage() {
     const optTotal = item.selectedOptions.reduce((s, o) => s + o.price, 0)
     return Math.round((item.product.price_per_day + optTotal) * coefficient * days * item.quantity)
   })
-  const grandTotal = itemTotals.reduce((s, v) => s + v, 0)
+  const subtotal = itemTotals.reduce((s, v) => s + v, 0)
+  const promoDiscount = promoApplied ? Math.round(subtotal * PROMO_DISCOUNT) : 0
+  const grandTotal = subtotal - promoDiscount
 
   const deliveryFee = (() => {
     const needsDelivery = deliveryType === 'delivery'
@@ -251,6 +283,7 @@ export default function CartPage() {
         payment_method: paymentMethod,
         deposit_method: depositMethod,
         delivery_fee: deliveryFee,
+        promo_discount: promoDiscount,
         dates,
         delivery_slot: selectedSlot || null,
         return_slot: endSlot || (endIso && !slotsForEndDate.length ? 'по договорённости' : null),
@@ -341,8 +374,14 @@ export default function CartPage() {
           )}
           <div className="flex justify-between items-center">
             <span className="text-slate-600">Аренда ({days} дн.):</span>
-            <span>{grandTotal} Kč</span>
+            <span>{subtotal} Kč</span>
           </div>
+          {promoApplied && (
+            <div className="flex justify-between items-center text-green-700 font-medium">
+              <span>🎉 Промокод summerbundle (−20%):</span>
+              <span>−{promoDiscount} Kč</span>
+            </div>
+          )}
           {deliveryFee > 0 && (
             <div className="flex justify-between items-center text-slate-600">
               <span>Доставка / отвоз:</span>
@@ -353,6 +392,29 @@ export default function CartPage() {
             <span className="font-semibold text-lg">Итого:</span>
             <strong className="text-xl text-brand">{totalWithFee} Kč</strong>
           </div>
+        </div>
+
+        {/* Promo code */}
+        <div className="pt-2 border-t border-slate-200 space-y-2">
+          <p className="text-sm font-medium text-slate-700">Промокод</p>
+          <div className="flex gap-2">
+            <input
+              className="input flex-1"
+              placeholder="Введите промокод"
+              value={promoInput}
+              onChange={(e) => { setPromoInput(e.target.value); setPromoError('') }}
+              onKeyDown={(e) => e.key === 'Enter' && applyPromo()}
+            />
+            <button
+              type="button"
+              className={promoApplied ? 'btn bg-green-100 text-green-800 border border-green-300' : 'btn-outline'}
+              onClick={promoApplied ? () => { setPromoApplied(false); setPromoInput('') } : applyPromo}
+            >
+              {promoApplied ? '✓ Применён' : 'Применить'}
+            </button>
+          </div>
+          {promoError && <p className="text-xs text-red-600">{promoError}</p>}
+          {promoApplied && <p className="text-xs text-green-700 font-medium">✓ Скидка 20% применена</p>}
         </div>
       </section>
 

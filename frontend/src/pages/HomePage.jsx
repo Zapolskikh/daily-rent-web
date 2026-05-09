@@ -25,13 +25,13 @@ export default function HomePage() {
       icon: '🚚',
       title: 'Доставка по Праге',
       sub: 'от 99 Kč',
-      body: 'Самовывоз — бесплатно. Стандартная доставка — 99 Kč. Вечерние и сложные адреса — 149 Kč.',
+      body: 'Самовывоз — бесплатно. Стандартная доставка — 149 Kč. Вечерние и сложные адреса — 199 Kč.',
     },
     {
-      icon: '🔧',
-      title: 'Популярные наборы',
-      sub: 'Готовые комплекты',
-      body: 'Move-in set, Wall-mount set, Cut & clean — готовые наборы для ремонта и переезда от 299 Kč.',
+      icon: '🎉',
+      title: 'Скидка при длительной аренде',
+      sub: 'до −40%',
+      body: '2–3 дня −10%, 4–7 дней −20%, 8–14 дней −30%, от 15 дней −40%. Цена рассчитывается автоматически.',
     },
   ]
 
@@ -82,7 +82,7 @@ export default function HomePage() {
             </div>
             <h1 className="text-4xl font-extrabold tracking-tight md:text-5xl">Аренда товаров в Праге</h1>
             <p className="mt-3 max-w-xl text-lg text-green-100">
-              Микро-аренда для бытовых задач: 1–3 дня, доставка по Праге, понятные наборы.
+              Микро-аренда для бытовых задач: от 1 дня, доставка по Праге.
             </p>
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm text-green-200">
               <span>✓ Пылесос</span><span>–</span>
@@ -158,6 +158,27 @@ export default function HomePage() {
 
       {/* Catalog anchor */}
       <div id="catalog">
+
+      {/* Promo banner */}
+      <div className="rounded-2xl px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between mb-4"
+        style={{ background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)', border: '1px solid rgba(245,158,11,0.35)' }}>
+        <div className="flex items-start gap-3">
+          <span className="text-2xl mt-0.5">🎉</span>
+          <div>
+            <p className="font-bold text-amber-900 text-base">
+              Промокод <span className="font-mono bg-amber-200 px-1.5 py-0.5 rounded text-sm">summerbundle</span>
+            </p>
+            <p className="text-sm text-amber-800 mt-0.5">
+              Аренда 2 и более позиций — скидка <strong>20%</strong> на всю стоимость аренды.
+            </p>
+          </div>
+        </div>
+        <a href="#catalog" className="btn text-sm font-semibold shrink-0"
+          style={{ background: '#f59e0b', color: 'white', border: 'none' }}>
+          Выбрать товары →
+        </a>
+      </div>
+
         <CategoryFilter
           categories={categories}
           activeCategory={activeCategory}

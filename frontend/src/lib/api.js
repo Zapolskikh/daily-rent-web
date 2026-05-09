@@ -8,15 +8,15 @@ const STORAGE_KEY_PRODUCTS_VERSION = 'rent_prague_products_version'
 const PRODUCTS_VERSION = '3'
 
 const DEFAULT_CATEGORIES = [
-  { slug: 'party', name: 'Для тусовок (Премиум)' },
-  { slug: 'travel', name: 'Для путешествий' },
-  { slug: 'repair', name: 'Для ремонта самому' },
+  { slug: 'party', name: 'Для тусовок' },
+  { slug: 'travel', name: 'Для дальних путешествий' },
+  { slug: 'repair', name: 'Для дома и ремонта' },
 ]
 
 const DEFAULT_PRODUCTS = [
-  { id: 'grill-001', name: 'Газовый гриль премиум', category: 'party', description: 'Идеально для вечеринок и BBQ.', price_per_day: 550, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
+  { id: 'grill-001', name: 'Газовый гриль', category: 'party', description: 'Идеально для вечеринок и BBQ.', price_per_day: 550, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
   { id: 'beer-system-001', name: 'Пивная система', category: 'party', description: 'Компактная система розлива.', price_per_day: 480, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
-  { id: 'hookah-001', name: 'Кальян премиум', category: 'party', description: 'Полный комплект для вечера.', price_per_day: 350, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
+  { id: 'hookah-001', name: 'Кальян', category: 'party', description: 'Полный комплект для вечера.', price_per_day: 350, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
   { id: 'roof-box-001', name: 'Бокс на машину', category: 'travel', description: 'Вместительный автобокс.', price_per_day: 420, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
   { id: 'child-seat-001', name: 'Автокресло', category: 'travel', description: 'Безопасное кресло для ребенка.', price_per_day: 280, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
   { id: 'bike-rack-001', name: 'Крепления для велика', category: 'travel', description: 'Перевозка велосипеда.', price_per_day: 300, image_url: DEFAULT_PRODUCT_IMAGE_URL, stock_quantity: 1, options: [] },
@@ -85,6 +85,31 @@ function readFileAsDataUrl(file) {
     reader.onload = () => resolve(String(reader.result || ''))
     reader.onerror = () => reject(new Error('Не удалось прочитать файл'))
     reader.readAsDataURL(file)
+  })
+}
+
+export function compressToSquareBlob(file, size = 400) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = size
+      canvas.height = size
+      const ctx = canvas.getContext('2d')
+      const side = Math.min(img.naturalWidth, img.naturalHeight)
+      const sx = (img.naturalWidth - side) / 2
+      const sy = (img.naturalHeight - side) / 2
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size)
+      URL.revokeObjectURL(url)
+      canvas.toBlob(
+        (blob) => (blob ? resolve(blob) : reject(new Error('Сжатие не удалось'))),
+        'image/jpeg',
+        0.82,
+      )
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Не удалось загрузить изображение')) }
+    img.src = url
   })
 }
 

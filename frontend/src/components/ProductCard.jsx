@@ -7,12 +7,13 @@ function normalizeImageUrl(imageUrl) {
 }
 
 export default function ProductCard({ product, onOpenModal }) {
+  const displayImage = (product.images?.length ? product.images[0] : product.image_url) || ''
   return (
     <article className="card-product cursor-pointer group" onClick={() => onOpenModal(product)}>
       {/* Image */}
       <div className="relative overflow-hidden" style={{ aspectRatio: '4/3' }}>
         <img
-          src={normalizeImageUrl(product.image_url)}
+          src={normalizeImageUrl(displayImage)}
           alt={product.name}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           onError={(e) => { e.currentTarget.src = 'https://placehold.co/600x400/d1f5dd/1a8c3f?text=Rent+Prague' }}

@@ -116,9 +116,9 @@ security = HTTPBearer(auto_error=False)
 serializer = URLSafeTimedSerializer(os.getenv("APP_SECRET", "change_me"), salt="admin-auth")
 
 CATEGORIES = [
-    {"slug": "party", "name": "Для тусовок (Премиум)"},
-    {"slug": "travel", "name": "Для путешествий"},
-    {"slug": "repair", "name": "Для ремонта самому"},
+    {"slug": "party", "name": "Для тусовок"},
+    {"slug": "travel", "name": "Для дальних путешествий"},
+    {"slug": "repair", "name": "Для дома и ремонта"},
 ]
 
 
@@ -275,6 +275,7 @@ def create_order(payload: OrderCreate) -> Order:
         options_total = sum(o.price for o in item.selected_options)
         total += (item.price_per_day + options_total) * coeff * days
     total += payload.delivery_fee
+    total = max(0.0, total - payload.promo_discount)
 
     order = Order(
         id=secrets.token_urlsafe(8),

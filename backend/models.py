@@ -10,6 +10,7 @@ class ProductOption(BaseModel):
     id: str
     name: str = Field(min_length=1, max_length=80)
     price: float = Field(ge=0)
+    image_url: str = ""
 
 
 class ProductBase(BaseModel):
@@ -18,6 +19,8 @@ class ProductBase(BaseModel):
     description: str = Field(min_length=5, max_length=1000)
     price_per_day: float = Field(gt=0)
     image_url: str = ""
+    images: list[str] = Field(default_factory=list)
+    deposit: int | None = None
     stock_quantity: int = Field(default=1, ge=0)
     options: list[ProductOption] = Field(default_factory=list)
 
@@ -32,6 +35,8 @@ class ProductUpdate(BaseModel):
     description: str | None = Field(default=None, min_length=5, max_length=1000)
     price_per_day: float | None = Field(default=None, gt=0)
     image_url: str | None = None
+    images: list[str] | None = None
+    deposit: int | None = None
     stock_quantity: int | None = Field(default=None, ge=0)
     options: list[ProductOption] | None = None
 
@@ -73,6 +78,7 @@ class OrderCreate(BaseModel):
     payment_method: Literal["cash", "card", "transfer", "crypto"] = "cash"
     deposit_method: Literal["same", "cash"] = "same"
     delivery_fee: float = Field(default=0, ge=0)
+    promo_discount: float = Field(default=0, ge=0)
     dates: list[str] = Field(default_factory=list)
     delivery_slot: str | None = Field(default=None, max_length=20)  # e.g. "13:00-14:00"
     return_slot: str | None = Field(default=None, max_length=40)    # end time or "по договорённости"

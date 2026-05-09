@@ -3,6 +3,7 @@ import {
   addComment,
   addNote,
   adminLogin,
+  compressToSquareBlob,
   createProduct,
   debugGetProductsRaw,
   debugResetProducts,
@@ -29,11 +30,13 @@ const emptyForm = {
   description: '',
   price_per_day: '',
   image_url: '',
+  images: [],
+  deposit: '',
   stock_quantity: 1,
   options: [],
 }
 
-const emptyOption = { id: '', name: '', price: '' }
+const emptyOption = { id: '', name: '', price: '', image_url: '' }
 
 const DAYS_AHEAD = 90
 const MONTH_RU = [
@@ -63,6 +66,8 @@ export default function AdminPage() {
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState('')
   const [imageFile, setImageFile] = useState(null)
+  const [extraImageFiles, setExtraImageFiles] = useState([]) // additional product images
+  const [newOptionImageFile, setNewOptionImageFile] = useState(null) // option image
   const [newOption, setNewOption] = useState(emptyOption)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -205,12 +210,20 @@ export default function AdminPage() {
         const upload = await uploadImage(imageFile, token)
         imageUrl = upload.image_url
       }
+      // Upload any extra images
+      const extraUrls = [...form.images]
+      for (const ef of extraImageFiles) {
+        const upload = await uploadImage(ef, token)
+        extraUrls.push(upload.image_url)
+      }
       const payload = {
         name: form.name,
         category: form.category,
         description: form.description,
         price_per_day: Number(form.price_per_day),
         image_url: imageUrl,
+        images: extraUrls,
+        deposit: form.deposit ? Number(form.deposit) : null,
         stock_quantity: Number(form.stock_quantity),
         options: form.options,
       }
@@ -222,6 +235,7 @@ export default function AdminPage() {
       await refreshProducts()
       setForm(emptyForm)
       setImageFile(null)
+      setExtraImageFiles([])
       setEditingId('')
       setMessage('Товар сохранен')
     } catch (err) {
@@ -247,10 +261,13 @@ export default function AdminPage() {
       description: item.description,
       price_per_day: item.price_per_day,
       image_url: item.image_url,
+      images: item.images ?? [],
+      deposit: item.deposit ?? '',
       stock_quantity: item.stock_quantity ?? 1,
       options: item.options ?? [],
     })
     setImageFile(null)
+    setExtraImageFiles([])
     setNewOption(emptyOption)
   }
 
@@ -261,14 +278,25 @@ export default function AdminPage() {
   }
 
   // Option management in form
-  function addOption() {
+  async function addOption() {
+    let optImageUrl = ''
+    if (newOptionImageFile) {
+      try {
+        const blob = await compressToSquareBlob(newOptionImageFile, 400)
+        const compressedFile = new File([blob], 'option.jpg', { type: 'image/jpeg' })
+        const upload = await uploadImage(compressedFile, token)
+        optImageUrl = upload.image_url
+      } catch { /* image upload is optional */ }
+    }
     const opt = {
       id: newOption.id.trim() || ('opt-' + Date.now()),
       name: newOption.name.trim(),
       price: Number(newOption.price) || 0,
+      image_url: optImageUrl,
     }
     setForm((s) => ({ ...s, options: [...s.options, opt] }))
     setNewOption(emptyOption)
+    setNewOptionImageFile(null)
   }
 
   function removeOption(id) {
@@ -384,7 +412,7 @@ export default function AdminPage() {
             <form className="grid gap-3" onSubmit={onSave}>
               <div className="grid gap-1">
                 <label className="text-xs font-medium text-slate-500">Название товара</label>
-                <input className="input" placeholder="Напр.: Газовый гриль премиум" value={form.name}
+                <input className="input" placeholder="Напр.: Газовый гриль" value={form.name}
                   onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} required />
               </div>
               <div className="grid gap-1">
@@ -402,6 +430,11 @@ export default function AdminPage() {
                   value={form.price_per_day} onChange={(e) => setForm((s) => ({ ...s, price_per_day: e.target.value }))} required />
               </div>
               <div className="grid gap-1">
+                <label className="text-xs font-medium text-slate-500">Кауце / депозит (Kč, необязательно)</label>
+                <input className="input" type="number" min="0" step="100" placeholder="Напр.: 1000"
+                  value={form.deposit} onChange={(e) => setForm((s) => ({ ...s, deposit: e.target.value }))} />
+              </div>
+              <div className="grid gap-1">
                 <label className="text-xs font-medium text-slate-500">Количество в наличии (шт.)</label>
                 <input className="input" type="number" min="0" step="1" placeholder="Напр.: 1"
                   value={form.stock_quantity} onChange={(e) => setForm((s) => ({ ...s, stock_quantity: e.target.value }))} required />
@@ -412,9 +445,29 @@ export default function AdminPage() {
                   onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))} required />
               </div>
               <div className="grid gap-1">
-                <label className="text-xs font-medium text-slate-500">Фото товара (JPG, PNG, WebP)</label>
+                <label className="text-xs font-medium text-slate-500">Главное фото (JPG, PNG, WebP)</label>
                 <input className="input" type="file" accept="image/png,image/jpeg,image/webp"
                   onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
+              </div>
+              <div className="grid gap-1">
+                <label className="text-xs font-medium text-slate-500">Дополнительные фото (можно несколько)</label>
+                <input className="input" type="file" accept="image/png,image/jpeg,image/webp" multiple
+                  onChange={(e) => setExtraImageFiles(Array.from(e.target.files || []))} />
+                {form.images.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {form.images.map((url, i) => (
+                      <div key={i} className="relative">
+                        <img src={url.startsWith('http') ? url : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${url}`}
+                          alt="" className="h-16 w-16 rounded-lg object-cover border border-slate-200" />
+                        <button type="button"
+                          className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center hover:bg-red-600"
+                          onClick={() => setForm((s) => ({ ...s, images: s.images.filter((_, j) => j !== i) }))}>
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Options */}
@@ -422,22 +475,37 @@ export default function AdminPage() {
                 <h3 className="font-medium text-sm">Дополнительные опции</h3>
                 {form.options.map((opt) => (
                   <div key={opt.id} className="flex items-center justify-between text-sm bg-slate-50 rounded-lg px-3 py-2">
-                    <span>{opt.name} — {opt.price} Kč</span>
-                    <button type="button" className="text-red-500 hover:text-red-700" onClick={() => removeOption(opt.id)}>✕</button>
+                    <div className="flex items-center gap-2 min-w-0">
+                      {opt.image_url && (
+                        <img src={opt.image_url.startsWith('http') ? opt.image_url : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${opt.image_url}`}
+                          alt="" className="h-8 w-8 rounded object-cover shrink-0" />
+                      )}
+                      <span className="truncate">{opt.name} — {opt.price} Kč</span>
+                    </div>
+                    <button type="button" className="text-red-500 hover:text-red-700 shrink-0 ml-2" onClick={() => removeOption(opt.id)}>✕</button>
                   </div>
                 ))}
-                <div className="grid grid-cols-[1fr,80px,auto] gap-2 mt-1">
-                  <input className="input text-sm" placeholder="Напр.: Биты (набор)" value={newOption.name}
-                    onChange={(e) => setNewOption((s) => ({ ...s, name: e.target.value }))} />
-                  <input className="input text-sm" type="number" min="0" placeholder="Цена" value={newOption.price}
-                    onChange={(e) => setNewOption((s) => ({ ...s, price: e.target.value }))} />
-                  <button type="button" className="btn-outline text-sm" onClick={addOption}>+ Добавить</button>
+                <div className="grid gap-2 mt-1">
+                  <div className="grid grid-cols-[1fr,80px] gap-2">
+                    <input className="input text-sm" placeholder="Напр.: Биты (набор)" value={newOption.name}
+                      onChange={(e) => setNewOption((s) => ({ ...s, name: e.target.value }))} />
+                    <input className="input text-sm" type="number" min="0" placeholder="Цена" value={newOption.price}
+                      onChange={(e) => setNewOption((s) => ({ ...s, price: e.target.value }))} />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <label className="text-xs text-slate-500 mb-0.5 block">Фото опции (обрезается в квадрат, необязательно)</label>
+                      <input className="input text-sm" type="file" accept="image/png,image/jpeg,image/webp"
+                        onChange={(e) => setNewOptionImageFile(e.target.files?.[0] || null)} />
+                    </div>
+                    <button type="button" className="btn-outline text-sm shrink-0 self-end" onClick={addOption}>+ Добавить</button>
+                  </div>
                 </div>
               </div>
 
               <button className="btn-primary" type="submit">{editingId ? 'Обновить товар' : 'Добавить товар'}</button>
               {editingId && (
-                <button type="button" className="btn-outline" onClick={() => { setForm(emptyForm); setEditingId('') }}>
+                <button type="button" className="btn-outline" onClick={() => { setForm(emptyForm); setEditingId(''); setExtraImageFiles([]) }}>
                   Отмена редактирования
                 </button>
               )}
