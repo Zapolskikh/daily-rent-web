@@ -96,8 +96,23 @@ class UserRecord(Base):
 
 
 def init_db() -> None:
-    Base.metadata.create_all(bind=_get_engine())
-    _migrate_reservations_from_orders()
+    import sys
+    try:
+        print("[init_db] creating tables...", file=sys.stderr)
+        Base.metadata.create_all(bind=_get_engine())
+        print("[init_db] tables OK", file=sys.stderr)
+    except Exception as exc:
+        print(f"[init_db] create_all FAILED: {exc!r}", file=sys.stderr)
+        raise
+    try:
+        print("[init_db] rebuilding reservations...", file=sys.stderr)
+        _migrate_reservations_from_orders()
+        print("[init_db] reservations OK", file=sys.stderr)
+    except Exception as exc:
+        import traceback
+        print(f"[init_db] reservations rebuild FAILED: {exc!r}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        # do not re-raise — app must still start
 
 
 def _session() -> Session:
@@ -171,26 +186,46 @@ def reserve_if_available(
     Atomically check availability and reserve in ONE transaction.
     Returns None on success, or an error message string if any item is unavailable.
     """
+    import sys
     if not items or not dates:
         return None
     product_ids = [pid for pid, _, _ in items]
+    print(f"[reserve] checking {len(items)} item(s) for dates {dates}", file=sys.stderr)
     with _session() as session:
-        # Lock rows for update (PostgreSQL) or just read (SQLite)
-        rows = {
-            (r.product_id, r.date): r
-            for r in session.execute(
-                select(ReservationRecord).where(
-                    ReservationRecord.product_id.in_(product_ids),
-                    ReservationRecord.date.in_(dates),
-                ).with_for_update()
-            ).scalars().all()
-        }
+        try:
+            # with_for_update may not work with Neon PgBouncer transaction pooling
+            rows = {
+                (r.product_id, r.date): r
+                for r in session.execute(
+                    select(ReservationRecord).where(
+                        ReservationRecord.product_id.in_(product_ids),
+                        ReservationRecord.date.in_(dates),
+                    ).with_for_update(skip_locked=False)
+                ).scalars().all()
+            }
+        except Exception as exc:
+            import traceback
+            print(f"[reserve] with_for_update FAILED ({exc!r}), retrying without lock", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
+            # Fallback: read without lock (less safe but functional)
+            rows = {
+                (r.product_id, r.date): r
+                for r in session.execute(
+                    select(ReservationRecord).where(
+                        ReservationRecord.product_id.in_(product_ids),
+                        ReservationRecord.date.in_(dates),
+                    )
+                ).scalars().all()
+            }
+        print(f"[reserve] found {len(rows)} existing reservation rows", file=sys.stderr)
         # Check each item
         for product_id, product_name, stock in items:
             for date in dates:
                 current = rows.get((product_id, date))
                 count = current.count if current else 0
+                print(f"[reserve] {product_id}@{date}: count={count} stock={stock}", file=sys.stderr)
                 if count >= stock:
+                    print(f"[reserve] BLOCKED: {product_name} on {date}", file=sys.stderr)
                     return f"Товар «{product_name}» недоступен на {date}"
         # All OK — increment
         for product_id, _, _ in items:
@@ -202,6 +237,7 @@ def reserve_if_available(
                     new_row = ReservationRecord(product_id=product_id, date=date, count=1)
                     session.add(new_row)
         session.commit()
+        print(f"[reserve] committed OK", file=sys.stderr)
     return None
 
 
