@@ -291,22 +291,30 @@ def create_order(payload: OrderCreate) -> Order:
     orders.append(order)
     write_orders(orders)
 
+    print(f"[order:{order.id}] saved. customer={order.email}", file=sys.stderr)
+
     try:
+        print(f"[order:{order.id}] sending admin notification (email+tg)...", file=sys.stderr)
         _notify_both(send_order_email, send_order_telegram, order)
+        print(f"[order:{order.id}] admin notification OK", file=sys.stderr)
     except Exception as exc:
-        print(f"[order] notification failed: {exc!r}", file=sys.stderr)
+        print(f"[order:{order.id}] admin notification FAILED: {exc!r}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
 
     # Send invoice PDF to the customer; fall back to plain confirmation if PDF fails
     try:
+        print(f"[order:{order.id}] generating PDF invoice for {order.email}...", file=sys.stderr)
         send_invoice_email(order)
+        print(f"[order:{order.id}] invoice email sent OK to {order.email}", file=sys.stderr)
     except Exception as exc:
-        print(f"[invoice] PDF send failed: {exc!r}", file=sys.stderr)
+        print(f"[order:{order.id}] invoice PDF FAILED: {exc!r}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         try:
+            print(f"[order:{order.id}] trying plain confirmation to {order.email}...", file=sys.stderr)
             send_order_confirmation_email(order)
+            print(f"[order:{order.id}] plain confirmation sent OK to {order.email}", file=sys.stderr)
         except Exception as exc2:
-            print(f"[invoice] plain confirmation also failed: {exc2!r}", file=sys.stderr)
+            print(f"[order:{order.id}] plain confirmation FAILED: {exc2!r}", file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
 
     return order
