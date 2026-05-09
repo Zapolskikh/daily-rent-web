@@ -180,8 +180,8 @@ export default function CartPage() {
       <div className="card text-center py-16 space-y-4">
         <p className="text-3xl">✅</p>
         <h2 className="text-2xl font-bold">Заказ оформлен!</h2>
-        <p className="text-slate-600">Счёт-фактура (инвойс) отправлена вам на email.</p>
-        <p className="text-slate-500 text-sm">В день доставки мы заранее свяжемся с вами для уточнения деталей.</p>
+        <p className="text-slate-600">Мы получили вашу заявку и скоро свяжемся для подтверждения.</p>
+        <p className="text-slate-500 text-sm">В день доставки мы заранее напишем или позвоним вам.</p>
         <Link to="/" className="btn-primary inline-block">На главную</Link>
       </div>
     )
@@ -250,7 +250,7 @@ export default function CartPage() {
       return
     }
     if (slotsForDate.length > 0 && !selectedSlot) {
-      setSubmitError(deliveryType === 'delivery' ? 'Выберите временной слот доставки' : 'Выберите время самовывоза')
+      setSubmitError(deliveryType === 'delivery' ? 'Выберите время доставки' : 'Выберите время самовывоза')
       return
     }
 
@@ -491,7 +491,7 @@ export default function CartPage() {
           {!selectedDate ? (
             <p className="text-sm text-slate-400">Сначала выберите дату начала выше.</p>
           ) : slotsForDate.length === 0 ? (
-            <p className="text-sm text-slate-400">Для этой даты слоты не настроены — уточните время в комментарии.</p>
+            <p className="text-sm text-slate-400">Для этой даты время не настроено — уточните в комментарии.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {slotsForDate.map((slot) => {
@@ -502,7 +502,7 @@ export default function CartPage() {
                   <button key={slot} type="button"
                     disabled={isBooked}
                     onClick={() => !isBooked && setSelectedSlot(isSelected ? '' : slot)}
-                    title={isBooked ? 'Слот уже занят' : ''}
+                    title={isBooked ? 'Это время уже занято' : ''}
                     className={`px-4 py-2 rounded-xl border text-sm font-medium transition
                       ${isBooked
                         ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed line-through'
@@ -558,7 +558,7 @@ export default function CartPage() {
             <h3 className="mb-2 font-medium text-slate-700">Время окончания аренды</h3>
             {slotsForEndDate.length === 0 ? (
               <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-2 text-sm text-amber-800">
-                ⏰ Для этой даты нет настроенных слотов — время возврата согласуем дополнительно.
+                ⏰ Для этой даты время не указано — согласуем дополнительно.
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">

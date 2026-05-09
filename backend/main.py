@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sys
 import secrets
+import traceback
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -294,16 +295,19 @@ def create_order(payload: OrderCreate) -> Order:
         _notify_both(send_order_email, send_order_telegram, order)
     except Exception as exc:
         print(f"[order] notification failed: {exc!r}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
 
     # Send invoice PDF to the customer; fall back to plain confirmation if PDF fails
     try:
         send_invoice_email(order)
     except Exception as exc:
-        print(f"[invoice] PDF send failed ({exc!r}), trying plain confirmation", file=sys.stderr)
+        print(f"[invoice] PDF send failed: {exc!r}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
         try:
             send_order_confirmation_email(order)
         except Exception as exc2:
             print(f"[invoice] plain confirmation also failed: {exc2!r}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
 
     return order
 

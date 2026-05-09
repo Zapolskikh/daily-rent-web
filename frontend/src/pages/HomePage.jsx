@@ -90,16 +90,22 @@ export default function HomePage() {
               <span>✓ Детектор проводки</span><span>–</span>
               <span>✓ Барбекю-гриль</span>
             </div>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <a href="/contact"
-                className="btn bg-white text-green-900 font-bold px-6 py-2.5 hover:bg-green-50"
-                style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.18)' }}>
-                Оставить заявку
-              </a>
+            <div className="mt-6 space-y-4">
               <a href="#catalog"
-                className="btn border-2 border-white/40 text-white font-semibold px-6 py-2.5 hover:bg-white/10">
+                className="btn bg-white text-green-900 font-bold px-7 py-3 text-base hover:bg-green-50 inline-block"
+                style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.22)' }}>
                 Смотреть каталог ↓
               </a>
+              <div className="text-sm text-green-100 space-y-0.5">
+                <p className="text-green-200">Не получается оформить или есть вопросы?</p>
+                <p>
+                  <a href="/contact" className="text-white font-semibold underline underline-offset-2 hover:text-green-200">Оставьте заявку в форме</a>
+                  {' '}или напишите в{' '}
+                  <a href="https://t.me/dailyrentprague" target="_blank" rel="noopener noreferrer"
+                    className="text-white font-semibold underline underline-offset-2 hover:text-green-200">Telegram</a>
+                  {' '}— обязательно свяжемся!
+                </p>
+              </div>
             </div>
           </div>
 
@@ -111,7 +117,7 @@ export default function HomePage() {
             border: '1px solid rgba(120,191,46,0.32)',
             borderRadius: '20px',
             padding: '28px 32px',
-            minHeight: '200px',
+            minHeight: '260px',
             boxShadow: '0 0 50px rgba(26,140,63,0.14), 0 8px 32px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.10)',
           }}>
             {/* Progress bars */}

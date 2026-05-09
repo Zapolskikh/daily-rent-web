@@ -108,7 +108,7 @@ export default function ProductModal({ product, onClose }) {
             <p className="mt-1 text-slate-600">{product.description}</p>
             {product.deposit && (
               <div className="mt-2 inline-flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-1.5 text-sm">
-                <span className="text-amber-700">🔒 Кауце (депозит):</span>
+                <span className="text-amber-700">🔒 Залог (депозит):</span>
                 <span className="font-semibold text-amber-800">{product.deposit} Kč</span>
                 <span className="text-amber-600 text-xs">· возвращается после проверки</span>
               </div>

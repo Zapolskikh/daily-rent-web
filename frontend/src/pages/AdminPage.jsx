@@ -333,7 +333,7 @@ export default function AdminPage() {
         .slice(0, 5)
         .map(d => new Date(d + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }))
         .join(', ')
-      setDatesMessage(`⚠️ Не заданы временные слоты для: ${labels}${datesWithoutSlots.length > 5 ? ' и ещё ' + (datesWithoutSlots.length - 5) : ''}. Нажмите на дату и выберите хотя бы один слот.`)
+      setDatesMessage(`⚠️ Не задано время доставки для: ${labels}${datesWithoutSlots.length > 5 ? ' и ещё ' + (datesWithoutSlots.length - 5) : ''}. Нажмите на дату и выберите хотя бы один интервал.`)
       return
     }
     setDatesSaving(true)
@@ -430,7 +430,7 @@ export default function AdminPage() {
                   value={form.price_per_day} onChange={(e) => setForm((s) => ({ ...s, price_per_day: e.target.value }))} required />
               </div>
               <div className="grid gap-1">
-                <label className="text-xs font-medium text-slate-500">Кауце / депозит (Kč, необязательно)</label>
+                <label className="text-xs font-medium text-slate-500">Залог / депозит (Kč, необязательно)</label>
                 <input className="input" type="number" min="0" step="100" placeholder="Напр.: 1000"
                   value={form.deposit} onChange={(e) => setForm((s) => ({ ...s, deposit: e.target.value }))} />
               </div>
@@ -703,7 +703,7 @@ export default function AdminPage() {
 
             {/* Date grid */}
             <p className="text-xs text-slate-500">
-              💡 <strong>Левый клик</strong> — включить/выключить дату. <strong>Клик по уже включённой дате</strong> — выбрать её для редактирования слотов (подсветится рамкой). <strong>Правый клик</strong> — отменить выбор даты.
+              💡 <strong>Левый клик</strong> — включить/выключить дату. <strong>Клик по уже включённой дате</strong> — выбрать её для настройки времени доставки (подсветится рамкой). <strong>Правый клик</strong> — отменить выбор даты.
             </p>
             {grouped.map((month) => (
               <div key={month.key}>
@@ -733,7 +733,7 @@ export default function AdminPage() {
                             }
                           }}
                           onContextMenu={(e) => { e.preventDefault(); toggleDate(iso) }}
-                          title={(selected ? 'Нажмите — редактировать слоты | ПКМ — убрать дату' : 'Нажмите, чтобы добавить') + (isOccupied ? ' | 🔵 Есть активный заказ' : '')}
+                          title={(selected ? 'Нажмите — настроить время | ПКМ — убрать дату' : 'Нажмите, чтобы добавить') + (isOccupied ? ' | 🔵 Есть активный заказ' : '')}
                           className={`h-9 w-9 rounded-lg text-sm font-medium transition ${cls}`}>
                           {day}
                         </button>
@@ -766,9 +766,9 @@ export default function AdminPage() {
             {/* Per-date time slots */}
             <div className="border-t pt-5 space-y-4">
               <div>
-                <h3 className="font-semibold">Временные слоты доставки</h3>
+                <h3 className="font-semibold">Интервалы доставки</h3>
                 <p className="text-sm text-slate-500 mt-0.5">
-                  Выберите дату в календаре выше (нажмите на включённую) — и задайте для неё слоты.
+                  Выберите дату в календаре выше (нажмите на включённую) — и задайте для неё доступное время.
                 </p>
               </div>
 
@@ -778,7 +778,7 @@ export default function AdminPage() {
                 return (
                   <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-3">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <p className="font-semibold text-amber-900">📅 Слоты для {isoLabel}</p>
+                      <p className="font-semibold text-amber-900">📅 Интервалы для {isoLabel}</p>
                       {!isDateSelected && (
                         <span className="text-xs text-red-600 font-medium">⚠ Эта дата не включена — сначала добавьте её в календаре</span>
                       )}
@@ -808,20 +808,20 @@ export default function AdminPage() {
                       })}
                     </div>
                     <p className="text-xs text-slate-500">
-                      Выбрано: {selectedDates.filter(d => d.startsWith(focusedDate + ':')).map(d => d.split(':')[1]).join(', ') || 'нет слотов'}
+                      Выбрано: {selectedDates.filter(d => d.startsWith(focusedDate + ':')).map(d => d.split(':')[1]).join(', ') || 'ничего не выбрано'}
                     </p>
                   </div>
                 )
               })() : (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 text-center">
-                  Нажмите на дату в календаре, чтобы задать для неё временные слоты
+                  Нажмите на дату в календаре, чтобы настроить время доставки
                 </div>
               )}
 
               {/* Summary of all dates with slots */}
               {selectedDates.some(d => /^\d{4}-\d{2}-\d{2}:/.test(d)) && (
                 <div className="text-xs space-y-1">
-                  <p className="font-medium text-slate-600">Все настроенные слоты:</p>
+                  <p className="font-medium text-slate-600">Все настроенные интервалы:</p>
                   {(() => {
                     const byDate = {}
                     selectedDates
@@ -856,7 +856,7 @@ export default function AdminPage() {
                 if (!noSlot.length) return null
                 return (
                   <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm space-y-1">
-                    <p className="font-semibold text-amber-800">⚠️ Даты без временных слотов:</p>
+                    <p className="font-semibold text-amber-800">⚠️ Даты без настроенного времени:</p>
                     <div className="flex flex-wrap gap-1">
                       {noSlot.sort().map(d => (
                         <button key={d}
@@ -866,7 +866,7 @@ export default function AdminPage() {
                         </button>
                       ))}
                     </div>
-                    <p className="text-amber-700 text-xs">Нажмите на дату, чтобы перейти к редактированию её слотов. Сохранение заблокировано.</p>
+                    <p className="text-amber-700 text-xs">Нажмите на дату, чтобы настроить время доставки. Сохранение заблокировано.</p>
                   </div>
                 )
               })()}
