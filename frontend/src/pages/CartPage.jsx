@@ -257,8 +257,12 @@ export default function CartPage() {
     setLoading(true)
     try {
       const dates = allDates
+      // Expand items by quantity so each unit is checked/reserved individually
+      const expandedItems = items.flatMap((item) =>
+        Array.from({ length: item.quantity }, () => ({ product_id: item.product.id }))
+      )
       const { unavailable_product_ids } = await checkAvailability({
-        items: items.map((item) => ({ product_id: item.product.id })),
+        items: expandedItems,
         dates,
       })
       if (unavailable_product_ids.length > 0) {
@@ -268,12 +272,14 @@ export default function CartPage() {
         return
       }
 
-      const orderItems = items.map((item) => ({
-        product_id: item.product.id,
-        product_name: item.product.name,
-        price_per_day: item.product.price_per_day,
-        selected_options: item.selectedOptions.map((o) => ({ id: o.id, name: o.name, price: o.price })),
-      }))
+      const orderItems = items.flatMap((item) =>
+        Array.from({ length: item.quantity }, () => ({
+          product_id: item.product.id,
+          product_name: item.product.name,
+          price_per_day: item.product.price_per_day,
+          selected_options: item.selectedOptions.map((o) => ({ id: o.id, name: o.name, price: o.price })),
+        }))
+      )
 
       await createOrder({
         ...form,
@@ -336,7 +342,8 @@ export default function CartPage() {
                   <p className="text-sm text-brand font-medium">
                     {item.product.price_per_day + optTotal} Kč/день
                     {coefficient < 1 && <span className="ml-1 text-green-700 font-semibold">× {coefficient.toFixed(2)}</span>}
-                    {' '}× {days} дн. = {Math.round((item.product.price_per_day + optTotal) * coefficient * days)} Kč
+                    {item.quantity > 1 && <span className="ml-1 text-slate-600">× {item.quantity} шт.</span>}
+                    {' '}× {days} дн. = {Math.round((item.product.price_per_day + optTotal) * coefficient * days * item.quantity)} Kč
                   </p>
                 </div>
                 <button className="btn-outline text-red-600 shrink-0" onClick={() => removeFromCart(item._key)}>Убрать</button>

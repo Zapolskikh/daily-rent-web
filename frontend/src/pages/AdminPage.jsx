@@ -657,11 +657,13 @@ export default function AdminPage() {
         activeOrders.forEach(order => {
           ;(order.dates || []).forEach(date => {
             occupiedDates.add(date)
-            if (order.delivery_slot) {
-              if (!occupiedSlotsByDate[date]) occupiedSlotsByDate[date] = new Set()
-              occupiedSlotsByDate[date].add(order.delivery_slot)
-            }
           })
+          // delivery_slot applies only to the delivery date (first date in the range)
+          if (order.delivery_slot && order.dates && order.dates.length > 0) {
+            const deliveryDate = order.dates[0]
+            if (!occupiedSlotsByDate[deliveryDate]) occupiedSlotsByDate[deliveryDate] = new Set()
+            occupiedSlotsByDate[deliveryDate].add(order.delivery_slot)
+          }
         })
         return (
           <section className="card space-y-6">

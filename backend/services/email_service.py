@@ -28,10 +28,14 @@ def _smtp_credentials() -> tuple[str, str, str]:
 
 
 def _smtp_send(subject: str, body: str) -> None:
-    if _is_dev():
-        print(f"[DEV EMAIL] To: (receiver) | Subject: {subject}\n{body[:200]}")
-        return
-    sender, app_password, receiver = _smtp_credentials()
+    try:
+        sender, app_password, receiver = _smtp_credentials()
+    except EmailConfigError:
+        # Credentials not configured — only log in dev mode, raise in production
+        if _is_dev():
+            print(f"[DEV EMAIL] To: (receiver) | Subject: {subject}\n{body[:200]}")
+            return
+        raise
 
     msg = MIMEText(body, _charset="utf-8")
     msg["Subject"] = subject
@@ -52,9 +56,13 @@ def _smtp_send_with_attachment(
     content_type: str = "application/pdf",
 ) -> None:
     """Send an email with a single attachment to *to* (in addition to the default receiver)."""
-    if _is_dev():
-        print(f"[DEV EMAIL+ATTACH] To: {to} | Subject: {subject} | File: {attachment_filename}")
-        return
+    try:
+        sender, app_password, receiver = _smtp_credentials()
+    except EmailConfigError:
+        if _is_dev():
+            print(f"[DEV EMAIL+ATTACH] To: {to} | Subject: {subject} | File: {attachment_filename}")
+            return
+        raise
     sender, app_password, receiver = _smtp_credentials()
 
     msg = MIMEMultipart()
