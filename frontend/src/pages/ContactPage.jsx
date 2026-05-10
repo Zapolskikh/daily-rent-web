@@ -31,11 +31,11 @@ export default function ContactPage() {
   return (
     <div className="space-y-6">
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl px-8 py-10 text-white"
+      <section className="relative overflow-hidden rounded-2xl sm:rounded-3xl px-5 sm:px-8 py-8 sm:py-10 text-white"
         style={{ background: 'linear-gradient(135deg, #0a3d1f 0%, #157033 30%, #1a8c3f 70%, #0a3d1f 100%)' }}>
         <div className="pointer-events-none absolute -top-16 -right-16 h-56 w-56 rounded-full opacity-20"
           style={{ background: 'radial-gradient(circle, #78bf2e, transparent 70%)' }} />
-        <h1 className="text-3xl font-bold">Связаться с нами</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">Связаться с нами</h1>
         <p className="mt-2 text-green-200">
           Ответим в течение нескольких часов. Для быстрого ответа — пишите в Telegram.
         </p>

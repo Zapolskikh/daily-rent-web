@@ -321,8 +321,8 @@ export default function CartPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Корзина</h1>
+    <div className="space-y-5 sm:space-y-6">
+      <h1 className="text-2xl sm:text-3xl font-bold">Корзина</h1>
 
       {/* Cart items */}
       <section className="card space-y-3">
@@ -594,7 +594,7 @@ export default function CartPage() {
         <h2 className="text-xl font-semibold">Оплата</h2>
         <div>
           <p className="text-xs font-medium text-slate-500 mb-2 uppercase tracking-wide">Способ оплаты</p>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {[
               ['cash',     '💵 Наличными'],
               ['transfer', '🏦 Банковским переводом'],

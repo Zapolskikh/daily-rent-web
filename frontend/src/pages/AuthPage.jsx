@@ -29,55 +29,57 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="mx-auto max-w-md">
-      <h1 className="mb-6 text-2xl font-bold text-gray-800">
-        {isLogin ? 'Вход' : 'Регистрация'}
-      </h1>
+    <div className="mx-auto max-w-md px-0 sm:px-0">
+      <div className="card">
+        <h1 className="mb-5 text-xl sm:text-2xl font-bold text-gray-800">
+          {isLogin ? 'Вход' : 'Регистрация'}
+        </h1>
 
-      {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+        {error && <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {!isLogin && (
-          <>
-            <input
-              type="text" placeholder="Имя" required minLength={2}
-              className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
-              value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-            <input
-              type="tel" placeholder="Телефон" required minLength={6}
-              className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
-              value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            />
-          </>
-        )}
-        <input
-          type="email" placeholder="Email" required
-          className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
-          value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-        />
-        <input
-          type="password" placeholder="Пароль" required minLength={6}
-          className="w-full rounded-lg border px-4 py-3 focus:border-green-500 focus:outline-none"
-          value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-        />
-        <button
-          type="submit" disabled={loading}
-          className="w-full rounded-lg bg-green-700 py-3 font-semibold text-white hover:bg-green-800 disabled:opacity-50 transition"
-        >
-          {loading ? '...' : isLogin ? 'Войти' : 'Зарегистрироваться'}
-        </button>
-      </form>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isLogin && (
+            <>
+              <input
+                type="text" placeholder="Имя" required minLength={2}
+                className="input"
+                value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+              <input
+                type="tel" placeholder="Телефон" required minLength={6}
+                className="input"
+                value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+            </>
+          )}
+          <input
+            type="email" placeholder="Email" required
+            className="input"
+            value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+          <input
+            type="password" placeholder="Пароль" required minLength={6}
+            className="input"
+            value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
+          <button
+            type="submit" disabled={loading}
+            className="btn-primary w-full py-3"
+          >
+            {loading ? '...' : isLogin ? 'Войти' : 'Зарегистрироваться'}
+          </button>
+        </form>
 
-      <p className="mt-4 text-center text-sm text-gray-600">
-        {isLogin ? 'Нет аккаунта?' : 'Уже есть аккаунт?'}{' '}
-        <button
-          onClick={() => { setIsLogin(!isLogin); setError('') }}
-          className="font-medium text-green-700 hover:underline"
-        >
-          {isLogin ? 'Зарегистрироваться' : 'Войти'}
-        </button>
-      </p>
+        <p className="mt-4 text-center text-sm text-gray-600">
+          {isLogin ? 'Нет аккаунта?' : 'Уже есть аккаунт?'}{' '}
+          <button
+            onClick={() => { setIsLogin(!isLogin); setError('') }}
+            className="font-medium text-green-700 hover:underline"
+          >
+            {isLogin ? 'Зарегистрироваться' : 'Войти'}
+          </button>
+        </p>
+      </div>
     </div>
   )
 }

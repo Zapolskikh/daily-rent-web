@@ -182,3 +182,24 @@ html, body {
   @apply border-slate-500;
 }
 
+/* Mobile: constrain datepicker width */
+.datepicker-wrapper .react-datepicker,
+.react-datepicker {
+  max-width: 100%;
+}
+.react-datepicker__month-container {
+  max-width: 100%;
+  width: 100%;
+}
+@media (max-width: 400px) {
+  .react-datepicker__day,
+  .react-datepicker__day-name {
+    width: 1.9rem;
+    line-height: 1.9rem;
+    font-size: 0.75rem;
+  }
+  .react-datepicker {
+    font-size: 0.75rem;
+  }
+}
+

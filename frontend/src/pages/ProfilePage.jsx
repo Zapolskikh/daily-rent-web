@@ -59,9 +59,9 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-800">Мой профиль</h1>
-        <button onClick={() => { logout(); navigate('/') }} className="text-sm text-red-600 hover:underline">
+      <div className="mb-6 sm:mb-8 flex items-center justify-between gap-3 flex-wrap">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800">Мой профиль</h1>
+        <button onClick={() => { logout(); navigate('/') }} className="text-sm text-red-600 hover:underline shrink-0">
           Выйти
         </button>
       </div>
@@ -111,12 +111,12 @@ export default function ProfilePage() {
       ) : (
         <div className="space-y-4">
           {orders.map((order) => (
-            <div key={order.id} className="rounded-xl border bg-white p-5 shadow-sm">
-              <div className="mb-2 flex items-center justify-between">
+            <div key={order.id} className="rounded-xl border bg-white p-4 shadow-sm">
+              <div className="mb-2 flex items-center justify-between gap-2 flex-wrap">
                 <span className="text-sm text-gray-500">
                   {new Date(order.created_at).toLocaleDateString('ru-RU')}
                 </span>
-                <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-medium">
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-xs sm:text-sm font-medium">
                   {STATUS_LABELS[order.status] || order.status}
                 </span>
               </div>
@@ -130,11 +130,11 @@ export default function ProfilePage() {
                   </p>
                 ))}
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-500">
+              <div className="flex items-center justify-between gap-2 text-sm flex-wrap">
+                <span className="text-gray-500 text-xs sm:text-sm">
                   Даты: {order.dates?.slice(0, 3).join(', ')}{order.dates?.length > 3 ? '...' : ''}
                 </span>
-                <span className="font-semibold text-green-800">{order.total_price} Kč</span>
+                <span className="font-semibold text-green-800 shrink-0">{order.total_price} Kč</span>
               </div>
               {order.status === 'cancelled' && order.cancellation_reason && (
                 <p className="mt-2 text-xs text-red-600">Причина: {order.cancellation_reason}</p>

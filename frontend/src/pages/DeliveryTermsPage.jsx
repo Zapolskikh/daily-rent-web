@@ -19,15 +19,16 @@ export default function DeliveryTermsPage() {
   return (
     <div className="space-y-6">
       <section className="card" style={{ background: 'linear-gradient(135deg, #0a3d1f 0%, #157033 30%, #1a8c3f 70%, #0a3d1f 100%)' }}>
-        <h1 className="text-3xl font-bold text-white">Доставка и условия аренды</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">Доставка и условия аренды</h1>
         <p className="mt-2 text-green-100">
           Прозрачные тарифы по Праге и простые правила аренды.
         </p>
       </section>
 
       {/* Delivery pricing */}
-      <section className="card overflow-x-auto">
-        <h2 className="mb-4 text-2xl font-semibold">Тарифы доставки</h2>
+      <section className="card">
+        <h2 className="mb-4 text-xl sm:text-2xl font-semibold">Тарифы доставки</h2>
+        <div className="overflow-x-auto -mx-5 px-5">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-slate-500">
@@ -46,17 +47,19 @@ export default function DeliveryTermsPage() {
             ))}
           </tbody>
         </table>
+        </div>
         <p className="mt-3 text-xs text-slate-500">
           Точная стоимость доставки уточняется при оформлении заказа. Тариф зависит от адреса и времени.
         </p>
       </section>
 
       {/* Multi-day discounts */}
-      <section className="card overflow-x-auto">
-        <h2 className="mb-2 text-2xl font-semibold">Скидки за длительную аренду</h2>
+      <section className="card">
+        <h2 className="mb-2 text-xl sm:text-2xl font-semibold">Скидки за длительную аренду</h2>
         <p className="mb-4 text-slate-600 text-sm">
           Чем дольше аренда — тем выгоднее цена. Скидка применяется автоматически в корзине.
         </p>
+        <div className="overflow-x-auto -mx-5 px-5">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="border-b border-slate-200 text-left text-slate-500">
@@ -75,11 +78,12 @@ export default function DeliveryTermsPage() {
             ))}
           </tbody>
         </table>
+        </div>
       </section>
 
       {/* Deposit principle */}
       <section className="card">
-        <h2 className="mb-3 text-2xl font-semibold">Залог (депозит)</h2>
+        <h2 className="mb-3 text-xl sm:text-2xl font-semibold">Залог (депозит)</h2>
         <p className="text-slate-700 mb-3">
           При выдаче инструмента берётся возвратный залог (депозит). Его размер зависит от стоимости позиции
           и указан на странице каждого товара.
